@@ -1,0 +1,118 @@
+/* SkillOS design tokens — dark-first, deep near-black base with layered surfaces. */
+:root {
+	/* Palette is the single source of truth; both themes derive from it. */
+	--bg: #08090b;
+	--surface-1: #0c0e11;
+	--surface-2: #111419;
+	--surface-3: #161a20;
+	--surface-4: #1c2128;
+	--surface-modal: #12161c;
+
+	--border: rgb(255 255 255 / 7%);
+	--border-strong: rgb(255 255 255 / 13%);
+	--border-accent: rgb(107 148 255 / 38%);
+
+	--text: #eef1f5;
+	--text-secondary: #a4adba;
+	--text-muted: #6d7683;
+	--text-faint: #4c525c;
+
+	--accent: #6b94ff;
+	--accent-hover: #82a5ff;
+	--accent-press: #5a83ee;
+	--accent-soft: rgb(107 148 255 / 12%);
+	--accent-soft-strong: rgb(107 148 255 / 20%);
+	--accent-contrast: #06070a;
+
+	--success: #43c48d;
+	--success-soft: rgb(67 196 141 / 13%);
+	--warning: #e0a93c;
+	--warning-soft: rgb(224 169 60 / 13%);
+	--danger: #ef5f66;
+	--danger-soft: rgb(239 95 102 / 13%);
+	--info: #64a6d8;
+
+	/* 3D universe — node states */
+	--node-locked: #3a4049;
+	--node-available: #7c8798;
+	--node-current: #6b94ff;
+	--node-active: #e0a93c;
+	--node-complete: #43c48d;
+	--universe-space: #05060a;
+
+	--shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
+	--shadow-md: 0 8px 24px -12px rgb(0 0 0 / 70%);
+	--shadow-lg: 0 24px 60px -20px rgb(0 0 0 / 80%);
+	--shadow-glow: 0 0 0 1px rgb(107 148 255 / 22%), 0 12px 40px -18px rgb(107 148 255 / 30%);
+
+	--radius-xs: 5px;
+	--radius-sm: 8px;
+	--radius-md: 12px;
+	--radius-lg: 16px;
+	--radius-xl: 22px;
+
+	/* Typography scale — dense enough for a daily productivity surface. */
+	--text-display: clamp(2rem, 1.4rem + 2.6vw, 3.25rem);
+	--text-h1: clamp(1.5rem, 1.2rem + 1.1vw, 2rem);
+	--text-h2: 1.3125rem;
+	--text-h3: 1.0625rem;
+	--text-body: 0.9375rem;
+	--text-secondary-size: 0.875rem;
+	--text-caption: 0.7969rem;
+	--text-meta: 0.7188rem;
+
+	--ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+	--ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+	--dur-fast: 120ms;
+	--dur-base: 200ms;
+	--dur-slow: 340ms;
+
+	--nav-w: 244px;
+	--panel-w: 336px;
+	--topbar-h: 56px;
+}
+
+:root.light {
+	--bg: #f7f8fa;
+	--surface-1: #ffffff;
+	--surface-2: #f1f3f6;
+	--surface-3: #e8ebf0;
+	--surface-4: #dfe3ea;
+	--surface-modal: #ffffff;
+
+	--border: rgb(12 16 22 / 9%);
+	--border-strong: rgb(12 16 22 / 16%);
+	--border-accent: rgb(45 88 214 / 35%);
+
+	--text: #12161c;
+	--text-secondary: #4a525e;
+	--text-muted: #767e8b;
+	--text-faint: #9aa2ae;
+
+	--accent: #2d58d6;
+	--accent-hover: #24499f;
+	--accent-press: #1d3b83;
+	--accent-soft: rgb(45 88 214 / 10%);
+	--accent-soft-strong: rgb(45 88 214 / 17%);
+	--accent-contrast: #ffffff;
+
+	--success: #1f8f61;
+	--success-soft: rgb(31 143 97 / 11%);
+	--warning: #a9761a;
+	--warning-soft: rgb(169 118 26 / 12%);
+	--danger: #c94046;
+	--danger-soft: rgb(201 64 70 / 11%);
+	--info: #2f6f9e;
+
+	--node-locked: #c4cad4;
+	--node-available: #8892a1;
+	--node-current: #2d58d6;
+	--node-active: #a9761a;
+	--node-complete: #1f8f61;
+	--universe-space: #eef0f4;
+
+	--shadow-sm: 0 1px 2px rgb(12 16 22 / 8%);
+	--shadow-md: 0 8px 24px -14px rgb(12 16 22 / 26%);
+	--shadow-lg: 0 24px 60px -24px rgb(12 16 22 / 32%);
+	--shadow-glow: 0 0 0 1px rgb(45 88 214 / 18%), 0 12px 40px -20px rgb(45 88 214 / 26%);
+}

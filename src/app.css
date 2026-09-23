@@ -1,0 +1,186 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';
+@import './lib/styles/tokens.css';
+
+@theme inline {
+	--color-bg: var(--bg);
+	--color-surface-1: var(--surface-1);
+	--color-surface-2: var(--surface-2);
+	--color-surface-3: var(--surface-3);
+	--color-surface-4: var(--surface-4);
+	--color-surface-modal: var(--surface-modal);
+	--color-line: var(--border);
+	--color-line-strong: var(--border-strong);
+	--color-ink: var(--text);
+	--color-ink-2: var(--text-secondary);
+	--color-ink-3: var(--text-muted);
+	--color-ink-4: var(--text-faint);
+	--color-accent: var(--accent);
+	--color-accent-soft: var(--accent-soft);
+	--color-success: var(--success);
+	--color-warning: var(--warning);
+	--color-danger: var(--danger);
+	--color-info: var(--info);
+	--font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+	--font-mono: 'Geist Mono Variable', ui-monospace, monospace;
+	--radius-xs: var(--radius-xs);
+	--radius-sm: var(--radius-sm);
+	--radius-md: var(--radius-md);
+	--radius-lg: var(--radius-lg);
+	--radius-xl: var(--radius-xl);
+}
+
+@layer base {
+	* {
+		border-color: var(--border);
+	}
+
+	html {
+		background: var(--bg);
+		color-scheme: dark;
+		-webkit-text-size-adjust: 100%;
+		scrollbar-gutter: stable;
+	}
+
+	html.light {
+		color-scheme: light;
+	}
+
+	body {
+		background: var(--bg);
+		color: var(--text);
+		font-family: var(--font-sans);
+		font-size: var(--text-body);
+		line-height: 1.55;
+		font-synthesis-weight: none;
+		-webkit-font-smoothing: antialiased;
+		text-rendering: optimizeLegibility;
+		overflow-x: hidden;
+		min-height: 100dvh;
+	}
+
+	h1, h2, h3, h4 {
+		font-weight: 550;
+		letter-spacing: -0.015em;
+		line-height: 1.22;
+		text-wrap: balance;
+	}
+
+	:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
+		border-radius: 4px;
+	}
+
+	::selection {
+		background: var(--accent-soft-strong);
+	}
+
+	::-webkit-scrollbar { width: 10px; height: 10px; }
+	::-webkit-scrollbar-track { background: transparent; }
+	::-webkit-scrollbar-thumb {
+		background: var(--surface-4);
+		border-radius: 99px;
+		border: 3px solid transparent;
+		background-clip: content-box;
+	}
+	::-webkit-scrollbar-thumb:hover { background-clip: content-box; background-color: var(--text-faint); }
+
+	input, textarea, select, button { font: inherit; color: inherit; }
+	textarea { resize: vertical; }
+	img, svg, canvas { display: block; max-width: 100%; }
+	button { cursor: pointer; }
+	button:disabled { cursor: not-allowed; }
+}
+
+@utility text-display { font-size: var(--text-display); font-weight: 560; letter-spacing: -0.03em; line-height: 1.04; }
+@utility text-h1 { font-size: var(--text-h1); font-weight: 550; letter-spacing: -0.022em; }
+@utility text-h2 { font-size: var(--text-h2); font-weight: 540; letter-spacing: -0.018em; }
+@utility text-h3 { font-size: var(--text-h3); font-weight: 540; letter-spacing: -0.012em; }
+@utility text-caption { font-size: var(--text-caption); line-height: 1.45; }
+@utility text-meta { font-size: var(--text-meta); letter-spacing: 0.02em; line-height: 1.4; }
+@utility text-2nd { font-size: var(--text-secondary-size); }
+
+/* Composited primitives used across the app. */
+@utility surface-card {
+	background: var(--surface-2);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+}
+
+@utility hairline-top {
+	box-shadow: inset 0 1px 0 rgb(255 255 255 / 5%);
+}
+
+@utility focus-ring {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+}
+
+@layer components {
+	.grid-noise {
+		background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px);
+		background-size: 44px 44px;
+	}
+
+	.skeleton {
+		background: linear-gradient(90deg, var(--surface-3) 25%, var(--surface-4) 37%, var(--surface-3) 63%);
+		background-size: 400% 100%;
+		animation: skeleton-sweep 1.4s var(--ease-in-out) infinite;
+		border-radius: var(--radius-sm);
+	}
+
+	.prose-os { max-width: 68ch; }
+	.prose-os p { margin-bottom: 0.85em; }
+	.prose-os ul { list-style: disc; padding-left: 1.25em; margin-bottom: 0.85em; }
+	.prose-os ol { list-style: decimal; padding-left: 1.35em; margin-bottom: 0.85em; }
+	.prose-os li { margin-bottom: 0.3em; }
+	.prose-os strong { color: var(--text); font-weight: 560; }
+	.prose-os code {
+		font-family: var(--font-mono);
+		font-size: 0.86em;
+		background: var(--surface-3);
+		border: 1px solid var(--border);
+		border-radius: 5px;
+		padding: 0.1em 0.36em;
+	}
+	.prose-os pre {
+		background: var(--surface-1);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-md);
+		padding: 0.9rem 1rem;
+		overflow-x: auto;
+		margin-bottom: 0.9em;
+	}
+	.prose-os pre code { background: none; border: none; padding: 0; font-size: 0.82em; line-height: 1.6; }
+	.prose-os h4 { margin: 1.1em 0 0.5em; font-size: 0.95rem; color: var(--text); }
+	.prose-os a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+}
+
+@keyframes skeleton-sweep { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+@keyframes os-fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes os-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes os-scale-in { from { opacity: 0; transform: scale(0.985); } to { opacity: 1; transform: none; } }
+@keyframes os-spin { to { transform: rotate(360deg); } }
+@keyframes os-pulse-ring { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+@keyframes os-caret { 0%, 45% { opacity: 1; } 55%, 100% { opacity: 0; } }
+
+@utility animate-fade-up { animation: os-fade-up var(--dur-slow) var(--ease-out) both; }
+@utility animate-fade { animation: os-fade var(--dur-base) var(--ease-out) both; }
+@utility animate-scale-in { animation: os-scale-in var(--dur-base) var(--ease-out) both; }
+@utility animate-spin-slow { animation: os-spin 900ms linear infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+	*, *::before, *::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
+	}
+}
+
+:root[data-reduced-motion='true'] *, :root[data-reduced-motion='true'] *::before {
+	animation-duration: 0.01ms !important;
+	transition-duration: 0.01ms !important;
+}

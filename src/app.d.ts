@@ -10,6 +10,9 @@ declare global {
 			user: AuthUser | null;
 			session: AuthSession | null;
 		}
+		interface PageData {
+			user?: AuthUser | null;
+		}
 	}
 }
 
