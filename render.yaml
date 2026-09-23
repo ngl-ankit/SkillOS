@@ -12,7 +12,7 @@ services:
 
     healthCheckPath: /api/health
 
-    buildCommand: bun install --frozen-lockfile && bun run build
+    buildCommand: bun install && bun run build
 
     startCommand: bun run db:migrate && node build/index.js
 
