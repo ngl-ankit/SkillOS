@@ -1,6 +1,6 @@
 import { createXai } from '@ai-sdk/xai';
-import { generateText, streamText, type LanguageModel } from 'ai';
-import { DEFAULT_XAI_MODEL, aiConfigured, env } from '../env';
+import { generateText, type LanguageModel, streamText } from 'ai';
+import { aiConfigured, DEFAULT_XAI_MODEL, env } from '../env';
 import { logger } from '../logger';
 
 /**
@@ -74,7 +74,12 @@ export async function generate(options: {
 }
 
 /** Streaming generation used by the mentor chat. Falls back to a single chunk on failure. */
-export function stream(options: { system: string; messages: { role: 'user' | 'assistant'; content: string }[]; maxOutputTokens?: number; temperature?: number }) {
+export function stream(options: {
+	system: string;
+	messages: { role: 'user' | 'assistant'; content: string }[];
+	maxOutputTokens?: number;
+	temperature?: number;
+}) {
 	return streamText({
 		model: model(),
 		system: options.system,

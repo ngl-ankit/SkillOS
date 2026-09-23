@@ -140,7 +140,12 @@ export const PROJECTS: CatalogProject[] = [
 		goal: 'Train, evaluate and explain a model on a real tabular dataset.',
 		difficulty: 3,
 		concepts: ['Train/test split', 'Pipelines', 'Evaluation metrics', 'Baselines'],
-		requirements: ['Baseline plus two model types', 'Cross-validated, problem-appropriate metrics', 'Leakage-free pipeline', 'A short model card'],
+		requirements: [
+			'Baseline plus two model types',
+			'Cross-validated, problem-appropriate metrics',
+			'Leakage-free pipeline',
+			'A short model card'
+		],
 		stack: ['Python', 'scikit-learn', 'pandas'],
 		milestones: ms(
 			['Baseline', 'Establish a trivial baseline.'],
@@ -157,7 +162,12 @@ export const PROJECTS: CatalogProject[] = [
 		goal: 'Build an assistant that answers from your own documents and cites sources.',
 		difficulty: 4,
 		concepts: ['Embeddings', 'Vector search', 'Prompt design', 'Evaluation', 'Failure handling'],
-		requirements: ['Chunk and embed documents into pgvector', 'Grounded answers with citations', 'Graceful model failure handling', 'An evaluation set of 15+ questions'],
+		requirements: [
+			'Chunk and embed documents into pgvector',
+			'Grounded answers with citations',
+			'Graceful model failure handling',
+			'An evaluation set of 15+ questions'
+		],
 		stack: ['TypeScript or Python', 'PostgreSQL + pgvector', 'An LLM API'],
 		milestones: ms(
 			['Ingest', 'Chunk and store embeddings.'],
@@ -176,7 +186,11 @@ export const PROJECTS: CatalogProject[] = [
 		concepts: ['Stacks and queues', 'Hash tables', 'Binary search', 'Graph traversal'],
 		requirements: ['Stack, queue, hash map and BST with tests', 'BFS and DFS', 'README with complexities'],
 		stack: ['Any language with a test runner'],
-		milestones: ms(['Linear structures', 'Stack and queue.'], ['Hashing', 'Hash map with resizing.'], ['Trees and graphs', 'BST plus BFS/DFS.']),
+		milestones: ms(
+			['Linear structures', 'Stack and queue.'],
+			['Hashing', 'Hash map with resizing.'],
+			['Trees and graphs', 'BST plus BFS/DFS.']
+		),
 		hours: 12,
 		topicKey: 'algorithms-complexity'
 	},
@@ -186,7 +200,12 @@ export const PROJECTS: CatalogProject[] = [
 		goal: 'Research, redesign and test one flow of an existing app, written as a portfolio case study.',
 		difficulty: 2,
 		concepts: ['User interviews', 'Heuristic evaluation', 'Prototyping', 'Usability testing'],
-		requirements: ['Evidence from three user conversations', 'Before/after screens with rationale', 'A tested prototype', 'A written case study'],
+		requirements: [
+			'Evidence from three user conversations',
+			'Before/after screens with rationale',
+			'A tested prototype',
+			'A written case study'
+		],
 		stack: ['Figma'],
 		milestones: ms(
 			['Research', 'Interviews and heuristic review.'],
@@ -203,9 +222,19 @@ export const PROJECTS: CatalogProject[] = [
 		goal: 'Take an idea from assumption to evidence in two weeks without production code.',
 		difficulty: 2,
 		concepts: ['Customer interviews', 'Assumption mapping', 'Lean experiments', 'Business model canvas'],
-		requirements: ['Assumption map', 'Five customer conversations', 'One experiment with a pre-set threshold', 'A go / pivot / stop memo'],
+		requirements: [
+			'Assumption map',
+			'Five customer conversations',
+			'One experiment with a pre-set threshold',
+			'A go / pivot / stop memo'
+		],
 		stack: ['Docs', 'A landing page or form tool'],
-		milestones: ms(['Assumptions', 'Map and rank.'], ['Conversations', 'Interview five people.'], ['Experiment', 'Run one cheap test.'], ['Decide', 'Write the memo.']),
+		milestones: ms(
+			['Assumptions', 'Map and rank.'],
+			['Conversations', 'Interview five people.'],
+			['Experiment', 'Run one cheap test.'],
+			['Decide', 'Write the memo.']
+		),
 		hours: 10,
 		topicKey: 'business-models'
 	}

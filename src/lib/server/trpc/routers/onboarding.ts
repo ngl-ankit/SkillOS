@@ -4,8 +4,8 @@ import { TRACKS } from '$server/catalog';
 import { db } from '$server/db';
 import { goals, profiles, userPreferences } from '$server/db/schema';
 import { generateRoadmap, rankTracks } from '$server/engine/roadmap';
-import { ctx } from '../init';
 import { rememberFact } from '$server/services/learner-context';
+import { ctx } from '../init';
 
 const level = z.enum(['beginner', 'intermediate', 'advanced']);
 const style = z.enum(['reading', 'video', 'hands_on', 'mixed']);
@@ -14,7 +14,10 @@ export const onboardingRouter = ctx.router({
 	/** Everything the onboarding wizard needs to render, including suggested tracks. */
 	state: ctx.protectedProcedure.query(async ({ ctx: c }) => {
 		const [profile] = await db.select().from(profiles).where(eq(profiles.userId, c.user.id)).limit(1);
-		const existing = await db.select({ id: goals.id }).from(goals).where(and(eq(goals.userId, c.user.id), sql`${goals.status} <> 'archived'`));
+		const existing = await db
+			.select({ id: goals.id })
+			.from(goals)
+			.where(and(eq(goals.userId, c.user.id), sql`${goals.status} <> 'archived'`));
 		return {
 			completed: Boolean(profile?.onboardedAt),
 			hasGoals: existing.length > 0,
@@ -36,7 +39,13 @@ export const onboardingRouter = ctx.router({
 
 	/** Live track suggestions as the learner types their goal. */
 	suggest: ctx.protectedProcedure
-		.input(z.object({ goal: z.string().min(2).max(200), targetRole: z.string().max(120).nullable().optional(), skills: z.array(z.string().max(60)).max(30).default([]) }))
+		.input(
+			z.object({
+				goal: z.string().min(2).max(200),
+				targetRole: z.string().max(120).nullable().optional(),
+				skills: z.array(z.string().max(60)).max(30).default([])
+			})
+		)
 		.query(({ input }) =>
 			rankTracks(input.goal, input.targetRole ?? null, input.skills)
 				.slice(0, 4)
@@ -84,12 +93,9 @@ export const onboardingRouter = ctx.router({
 					timezone: input.timezone,
 					onboardedAt: now
 				})
-				.onConflictUpdate((t) => ({ userId: t.userId }))
-				.execute?.() ??
-				(await db
-					.insert(profiles)
-					.values({
-						userId: c.user.id,
+				.onConflictDoUpdate({
+					target: profiles.userId,
+					set: {
 						displayName: input.displayName,
 						level: input.level,
 						existingSkills: input.existingSkills,
@@ -98,26 +104,16 @@ export const onboardingRouter = ctx.router({
 						targetRole: input.targetRole,
 						deadline: input.deadline,
 						timezone: input.timezone,
-						onboardedAt: now
-					})
-					.onConflictDoUpdate({
-						target: profiles.userId,
-						set: {
-							displayName: input.displayName,
-							level: input.level,
-							existingSkills: input.existingSkills,
-							dailyMinutes: input.dailyMinutes,
-							learningStyle: input.learningStyle,
-							targetRole: input.targetRole,
-							deadline: input.deadline,
-							timezone: input.timezone,
-							onboardedAt: now,
-							updatedAt: now
-						}
-					}));
+						onboardedAt: now,
+						updatedAt: now
+					}
+				});
 
 			// One primary goal per learner: demote any existing primary first.
-			await db.update(goals).set({ isPrimary: false, updatedAt: now }).where(and(eq(goals.userId, c.user.id), eq(goals.isPrimary, true)));
+			await db
+				.update(goals)
+				.set({ isPrimary: false, updatedAt: now })
+				.where(and(eq(goals.userId, c.user.id), eq(goals.isPrimary, true)));
 			const [goal] = await db
 				.insert(goals)
 				.values({
@@ -181,6 +177,11 @@ export const onboardingRouter = ctx.router({
 				});
 			}
 
-			return { goalId: goal.id, roadmapId: result.roadmapId, topics: result.topicIdsByCatalogKey.size, skipped: result.blueprint.skipped.length };
+			return {
+				goalId: goal.id,
+				roadmapId: result.roadmapId,
+				topics: result.topicIdsByCatalogKey.size,
+				skipped: result.blueprint.skipped.length
+			};
 		})
 });

@@ -1,14 +1,14 @@
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { clamp, todayISO } from '$lib/utils';
-import { db } from '$server/db';
-import { notes, topicProgress, topics } from '$server/db/schema';
-import { AppError } from '$server/errors';
 import { RESOURCE_BY_SLUG, TOPIC_BY_KEY } from '$server/catalog';
-import { ensureTopicProgress, getRoadmapBundle, requireTopic } from '$server/services/access';
-import { applyProgress, logSession, recordReview } from '$server/services/progress';
+import { db } from '$server/db';
+import { assessments, learningSessions, notes, topicProgress, topics } from '$server/db/schema';
 import { gradePracticeHint } from '$server/engine/grader';
 import { revisionPriority } from '$server/engine/srs';
+import { AppError } from '$server/errors';
+import { ensureTopicProgress, getRoadmapBundle, requireTopic } from '$server/services/access';
+import { applyProgress, logSession, recordReview } from '$server/services/progress';
 import { ctx } from '../init';
 
 /** Everything needed to actually learn a topic rather than just open a link. */
@@ -36,12 +36,12 @@ export async function buildTopicWorkspace(userId: string, topicId: string) {
 
 	const [assessment] = await db
 		.select({
-			id: sql<string>`a.id`,
-			title: sql<string>`a.title`,
-			questionCount: sql<number>`(select count(*) from assessment_questions q where q.assessment_id = a.id)::int`
+			id: assessments.id,
+			title: assessments.title,
+			questionCount: sql<number>`(select count(*) from assessment_questions q where q.assessment_id = ${assessments.id})::int`
 		})
-		.from(sql`assessments a`.as('a'))
-		.where(sql`a.user_id = ${userId} and a.topic_id = ${topicId}`)
+		.from(assessments)
+		.where(and(eq(assessments.userId, userId), eq(assessments.topicId, topicId)))
 		.limit(1);
 
 	const noteRows = await db
@@ -53,9 +53,9 @@ export async function buildTopicWorkspace(userId: string, topicId: string) {
 
 	const recentSessions = await db
 		.select()
-		.from(sql`learning_sessions ls`.as('ls'))
-		.where(sql`ls.user_id = ${userId} and ls.topic_id = ${topicId}`)
-		.orderBy(sql`ls.created_at desc`)
+		.from(learningSessions)
+		.where(and(eq(learningSessions.userId, userId), eq(learningSessions.topicId, topicId)))
+		.orderBy(desc(learningSessions.createdAt))
 		.limit(10);
 
 	return {
@@ -98,7 +98,9 @@ export async function buildTopicWorkspace(userId: string, topicId: string) {
 }
 
 export const topicsRouter = ctx.router({
-	workspace: ctx.protectedProcedure.input(z.object({ topicId: z.string().uuid() })).query(({ ctx: c, input }) => buildTopicWorkspace(c.user.id, input.topicId)),
+	workspace: ctx.protectedProcedure
+		.input(z.object({ topicId: z.string().uuid() }))
+		.query(({ ctx: c, input }) => buildTopicWorkspace(c.user.id, input.topicId)),
 
 	/** Starts or resumes a focused session. */
 	start: ctx.protectedProcedure.input(z.object({ topicId: z.string().uuid() })).mutation(async ({ ctx: c, input }) => {
@@ -112,7 +114,13 @@ export const topicsRouter = ctx.router({
 				startedAt: new Date()
 			});
 		}
-		return { topicId: row.id, title: row.title, concepts: row.concepts, practice: row.practice, estimatedMinutes: row.estimatedMinutes };
+		return {
+			topicId: row.id,
+			title: row.title,
+			concepts: row.concepts,
+			practice: row.practice,
+			estimatedMinutes: row.estimatedMinutes
+		};
 	}),
 
 	/** Persists incremental progress plus the minutes actually spent. */
@@ -129,20 +137,44 @@ export const topicsRouter = ctx.router({
 			await ensureTopicProgress(c.user.id, input.topicId);
 			const updated = await applyProgress(c.user.id, { topicId: input.topicId, progressPct: input.progressPct }, input.minutes);
 			if (input.minutes > 0) {
-				await logSession({ userId: c.user.id, topicId: input.topicId, kind: 'learn', minutes: input.minutes, day: todayISO(), summary: input.note ?? undefined });
+				await logSession({
+					userId: c.user.id,
+					topicId: input.topicId,
+					kind: 'learn',
+					minutes: input.minutes,
+					day: todayISO(),
+					summary: input.note ?? undefined
+				});
 			}
 			return updated;
 		}),
 
 	/** Completes a topic and immediately schedules its first spaced review. */
 	complete: ctx.protectedProcedure
-		.input(z.object({ topicId: z.string().uuid(), minutes: z.number().int().min(0).max(600).default(0), confidence: z.number().int().min(1).max(5).default(4) }))
+		.input(
+			z.object({
+				topicId: z.string().uuid(),
+				minutes: z.number().int().min(0).max(600).default(0),
+				confidence: z.number().int().min(1).max(5).default(4)
+			})
+		)
 		.mutation(async ({ ctx: c, input }) => {
 			await ensureTopicProgress(c.user.id, input.topicId);
-			const row = await applyProgress(c.user.id, { topicId: input.topicId, status: 'completed', progressPct: 100 }, input.minutes);
+			const row = await applyProgress(
+				c.user.id,
+				{ topicId: input.topicId, status: 'completed', progressPct: 100 },
+				input.minutes
+			);
 			const scheduled = await recordReview(c.user.id, input.topicId, clamp(input.confidence, 1, 5));
 			if (input.minutes > 0) {
-				await logSession({ userId: c.user.id, topicId: input.topicId, kind: 'learn', minutes: input.minutes, day: todayISO(), summary: 'Completed topic' });
+				await logSession({
+					userId: c.user.id,
+					topicId: input.topicId,
+					kind: 'learn',
+					minutes: input.minutes,
+					day: todayISO(),
+					summary: 'Completed topic'
+				});
 			}
 			return { progress: row, scheduled };
 		}),
@@ -175,7 +207,14 @@ export const topicsRouter = ctx.router({
 
 	/** Toggles an exercise done and advances progress proportionally. */
 	togglePractice: ctx.protectedProcedure
-		.input(z.object({ topicId: z.string().uuid(), exerciseIndex: z.number().int().min(0).max(50), done: z.boolean(), minutes: z.number().int().min(0).max(300).default(0) }))
+		.input(
+			z.object({
+				topicId: z.string().uuid(),
+				exerciseIndex: z.number().int().min(0).max(50),
+				done: z.boolean(),
+				minutes: z.number().int().min(0).max(300).default(0)
+			})
+		)
 		.mutation(async ({ ctx: c, input }) => {
 			const progress = await ensureTopicProgress(c.user.id, input.topicId);
 			const current = new Set<number>(Array.isArray(progress.practiceDone) ? (progress.practiceDone as number[]) : []);
@@ -191,13 +230,25 @@ export const topicsRouter = ctx.router({
 				.where(and(eq(topicProgress.topicId, input.topicId), eq(topicProgress.userId, c.user.id)))
 				.returning();
 			if (input.minutes > 0) {
-				await logSession({ userId: c.user.id, topicId: input.topicId, kind: 'practice', minutes: input.minutes, day: todayISO() });
+				await logSession({
+					userId: c.user.id,
+					topicId: input.topicId,
+					kind: 'practice',
+					minutes: input.minutes,
+					day: todayISO()
+				});
 			}
 			return { practiceDone: updated?.practiceDone ?? list, progressPct: nextPct };
 		}),
 
 	addNote: ctx.protectedProcedure
-		.input(z.object({ topicId: z.string().uuid(), title: z.string().trim().max(160).default('Note'), body: z.string().trim().min(1).max(8000) }))
+		.input(
+			z.object({
+				topicId: z.string().uuid(),
+				title: z.string().trim().max(160).default('Note'),
+				body: z.string().trim().min(1).max(8000)
+			})
+		)
 		.mutation(async ({ ctx: c, input }) => {
 			await requireTopic(c.user.id, input.topicId);
 			const [row] = await db
@@ -221,7 +272,12 @@ export const topicsRouter = ctx.router({
 		const ranked = bundle.topics
 			.map((t) => ({
 				topicId: t.topicId,
-				priority: revisionPriority({ nextReviewAt: t.nextReviewAt, mastery: t.mastery, reviewCount: t.reviewCount, difficulty: t.difficulty })
+				priority: revisionPriority({
+					nextReviewAt: t.nextReviewAt,
+					mastery: t.mastery,
+					reviewCount: t.reviewCount,
+					difficulty: t.difficulty
+				})
 			}))
 			.sort((a, b) => b.priority - a.priority);
 		const index = ranked.findIndex((r) => r.topicId === input.topicId);
@@ -238,18 +294,29 @@ export const topicsRouter = ctx.router({
 	}),
 
 	/** Searches the learner's own roadmap topics. */
-	find: ctx.protectedProcedure.input(z.object({ query: z.string().trim().max(120).default('') })).query(async ({ ctx: c, input }) => {
-		if (input.query.trim().length < 2) return [];
-		const like = `%${input.query.trim().toLowerCase()}%`;
-		return db
-			.select({ id: topics.id, title: topics.title, domain: topics.domain, description: topics.description })
-			.from(topics)
-			.where(and(eq(topics.userId, c.user.id), sql`(lower(${topics.title}) like ${like} or lower(${topics.description}) like ${like})`))
-			.limit(12);
-	}),
+	find: ctx.protectedProcedure
+		.input(z.object({ query: z.string().trim().max(120).default('') }))
+		.query(async ({ ctx: c, input }) => {
+			if (input.query.trim().length < 2) return [];
+			const like = `%${input.query.trim().toLowerCase()}%`;
+			return db
+				.select({ id: topics.id, title: topics.title, domain: topics.domain, description: topics.description })
+				.from(topics)
+				.where(
+					and(
+						eq(topics.userId, c.user.id),
+						sql`(lower(${topics.title}) like ${like} or lower(${topics.description}) like ${like})`
+					)
+				)
+				.limit(12);
+		}),
 
 	notes: ctx.protectedProcedure.input(z.object({ topicId: z.string().uuid() })).query(async ({ ctx: c, input }) =>
-		db.select().from(notes).where(and(eq(notes.userId, c.user.id), eq(notes.topicId, input.topicId))).orderBy(desc(notes.updatedAt))
+		db
+			.select()
+			.from(notes)
+			.where(and(eq(notes.userId, c.user.id), eq(notes.topicId, input.topicId)))
+			.orderBy(desc(notes.updatedAt))
 	),
 
 	/** Domain list for filters on the learn surface. */

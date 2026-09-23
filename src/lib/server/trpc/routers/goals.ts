@@ -2,25 +2,27 @@ import { and, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '$server/db';
 import { dailyPlans, goals } from '$server/db/schema';
-import { AppError } from '$server/errors';
 import { generateRoadmap } from '$server/engine/roadmap';
+import { AppError } from '$server/errors';
 import { getPrimaryGoal, getProfile, listGoals, requireGoal } from '$server/services/access';
 import { ctx } from '../init';
 
 const level = z.enum(['beginner', 'intermediate', 'advanced']);
 
 export const goalsRouter = ctx.router({
-	list: ctx.protectedProcedure.input(z.object({ includeArchived: z.boolean().default(false) }).default({ includeArchived: false })).query(async ({ ctx: c, input }) => {
-		const list = await listGoals(c.user.id, input.includeArchived);
-		// Attach live roadmap progress so the goal list is informative, not a bare list.
-		const { roadmapProgress } = await import('$server/services/progress');
-		return Promise.all(
-			list.map(async (goal) => {
-				const progress = await roadmapProgress(c.user.id, goal.id);
-				return { ...goal, progress };
-			})
-		);
-	}),
+	list: ctx.protectedProcedure
+		.input(z.object({ includeArchived: z.boolean().default(false) }).default({ includeArchived: false }))
+		.query(async ({ ctx: c, input }) => {
+			const list = await listGoals(c.user.id, input.includeArchived);
+			// Attach live roadmap progress so the goal list is informative, not a bare list.
+			const { roadmapProgress } = await import('$server/services/progress');
+			return Promise.all(
+				list.map(async (goal) => {
+					const progress = await roadmapProgress(c.user.id, goal.id);
+					return { ...goal, progress };
+				})
+			);
+		}),
 
 	primary: ctx.protectedProcedure.query(({ ctx: c }) => getPrimaryGoal(c.user.id)),
 
@@ -54,7 +56,10 @@ export const goalsRouter = ctx.router({
 			const dailyMinutes = input.dailyMinutes ?? profile?.dailyMinutes ?? 60;
 			const now = new Date();
 			if (input.setPrimary) {
-				await db.update(goals).set({ isPrimary: false, updatedAt: now }).where(and(eq(goals.userId, c.user.id), eq(goals.isPrimary, true)));
+				await db
+					.update(goals)
+					.set({ isPrimary: false, updatedAt: now })
+					.where(and(eq(goals.userId, c.user.id), eq(goals.isPrimary, true)));
 			}
 			const [goal] = await db
 				.insert(goals)
@@ -127,14 +132,23 @@ export const goalsRouter = ctx.router({
 		const goal = await requireGoal(c.user.id, input.id);
 		if (goal.status === 'archived') throw new AppError('PRECONDITION_FAILED', 'Restore this goal before making it primary.');
 		const now = new Date();
-		await db.update(goals).set({ isPrimary: false, updatedAt: now }).where(and(eq(goals.userId, c.user.id), eq(goals.isPrimary, true)));
+		await db
+			.update(goals)
+			.set({ isPrimary: false, updatedAt: now })
+			.where(and(eq(goals.userId, c.user.id), eq(goals.isPrimary, true)));
 		const [row] = await db.update(goals).set({ isPrimary: true, updatedAt: now }).where(eq(goals.id, goal.id)).returning();
 		return row;
 	}),
 
 	/** Regenerating keeps the goal, replaces the roadmap, and preserves history. */
 	regenerateRoadmap: ctx.protectedProcedure
-		.input(z.object({ goalId: z.string().uuid(), trackSlug: z.string().max(80).nullable().default(null), today: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }))
+		.input(
+			z.object({
+				goalId: z.string().uuid(),
+				trackSlug: z.string().max(80).nullable().default(null),
+				today: z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+			})
+		)
 		.mutation(async ({ ctx: c, input }) => {
 			const goal = await requireGoal(c.user.id, input.goalId);
 			const profile = await getProfile(c.user.id);
@@ -157,7 +171,10 @@ export const goalsRouter = ctx.router({
 
 	remove: ctx.protectedProcedure.input(z.object({ id: z.string().uuid() })).mutation(async ({ ctx: c, input }) => {
 		await requireGoal(c.user.id, input.id);
-		await db.update(goals).set({ status: 'archived', isPrimary: false, updatedAt: new Date() }).where(and(eq(goals.id, input.id), eq(goals.userId, c.user.id)));
+		await db
+			.update(goals)
+			.set({ status: 'archived', isPrimary: false, updatedAt: new Date() })
+			.where(and(eq(goals.id, input.id), eq(goals.userId, c.user.id)));
 		return { ok: true };
 	})
 });

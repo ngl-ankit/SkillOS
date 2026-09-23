@@ -1,15 +1,15 @@
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { addDaysISO, clamp, humanMinutes } from '$lib/utils';
+import { generate, parseJson } from '../ai/client';
 import { db } from '../db';
 import { aiCache, aiConversations, aiMessages, dailyPlanItems, dailyPlans } from '../db/schema';
 import { composePlan } from '../engine/planner';
 import type { PlanItemKind } from '../engine/types';
+import { logger } from '../logger';
 import { getPreferences, requireProfile, todayPlan } from './access';
 import { persistPlan } from './dashboard';
 import { buildLearnerContext, contextToPrompt, rememberFact } from './learner-context';
 import { revisionQueue, weakTopics } from './progress';
-import { generate, parseJson } from '../ai/client';
-import { logger } from '../logger';
 
 const PLAN_SYSTEM = `You are the planning engine inside SkillOS, a personal learning operating system.
 You receive a deterministic draft plan already computed from the learner's real data, plus that learner's full context.
@@ -34,7 +34,11 @@ export type PlanRefinement = {
 
 const KINDS: PlanItemKind[] = ['learn', 'practice', 'assess', 'revise', 'project', 'carry_over'];
 
-function sanitizeRefinement(raw: unknown, budget: number, fallback: { focus: string; items: { kind: PlanItemKind; title: string; detail: string; minutes: number }[] }): PlanRefinement | null {
+function sanitizeRefinement(
+	raw: unknown,
+	budget: number,
+	fallback: { focus: string; items: { kind: PlanItemKind; title: string; detail: string; minutes: number }[] }
+): PlanRefinement | null {
 	if (!raw || typeof raw !== 'object') return null;
 	const value = raw as Record<string, unknown>;
 	const itemsRaw = Array.isArray(value.items) ? value.items : [];
@@ -59,7 +63,8 @@ function sanitizeRefinement(raw: unknown, budget: number, fallback: { focus: str
 	const total = items.reduce((sum, i) => sum + i.minutes, 0);
 	// Reject plans that ignore the budget; the deterministic draft is better than a fantasy.
 	if (total > budget + 5 || total < Math.min(10, budget)) return null;
-	const scaled = total > budget ? items.map((i) => ({ ...i, minutes: Math.max(5, Math.round((i.minutes * budget) / total)) })) : items;
+	const scaled =
+		total > budget ? items.map((i) => ({ ...i, minutes: Math.max(5, Math.round((i.minutes * budget) / total)) })) : items;
 	return {
 		focus: typeof value.focus === 'string' && value.focus.trim().length > 2 ? value.focus.trim().slice(0, 140) : fallback.focus,
 		note: typeof value.note === 'string' ? value.note.trim().slice(0, 320) : '',
@@ -71,7 +76,11 @@ function sanitizeRefinement(raw: unknown, budget: number, fallback: { focus: str
  * Produces today's plan. The deterministic engine is always the source of
  * truth; Grok may only refine it, and its output is validated before it is used.
  */
-export async function planWithAi(userId: string, today: string, force: boolean): Promise<{ planId: string; refined: boolean; note: string | null }> {
+export async function planWithAi(
+	userId: string,
+	today: string,
+	force: boolean
+): Promise<{ planId: string; refined: boolean; note: string | null }> {
 	const existing = await todayPlan(userId, today);
 	if (existing && !force) {
 		return { planId: existing.plan.id, refined: Boolean(existing.plan.aiNote), note: existing.plan.aiNote };
@@ -87,7 +96,8 @@ export async function planWithAi(userId: string, today: string, force: boolean):
 	const { ensureTodayPlan } = await import('./dashboard');
 	void ensureTodayPlan;
 	const deterministic = await todayPlan(userId, today);
-	if (deterministic && !force) return { planId: deterministic.plan.id, refined: Boolean(deterministic.plan.aiNote), note: deterministic.plan.aiNote };
+	if (deterministic && !force)
+		return { planId: deterministic.plan.id, refined: Boolean(deterministic.plan.aiNote), note: deterministic.plan.aiNote };
 
 	const draftSource = context
 		? composePlan({
@@ -212,7 +222,11 @@ export async function readCache<T>(userId: string, key: string): Promise<T | nul
 		.orderBy(desc(aiCache.createdAt))
 		.limit(1);
 	if (!row) return null;
-	return row.content as T;
+	try {
+		return JSON.parse(row.content) as T;
+	} catch {
+		return null;
+	}
 }
 
 export async function writeCache(userId: string, key: string, content: unknown, ttlSeconds: number) {
@@ -221,14 +235,18 @@ export async function writeCache(userId: string, key: string, content: unknown, 
 		.values({
 			userId,
 			key: key.slice(0, 240),
-			content: content as Record<string, unknown>,
+			content: JSON.stringify(content),
 			expiresAt: new Date(Date.now() + ttlSeconds * 1000)
 		})
 		.onConflictDoNothing();
 }
 
 /** Appends both sides of a mentor exchange so conversations stay resumable. */
-export async function appendMessages(userId: string, conversationId: string, entries: { role: 'user' | 'assistant'; content: string }[]) {
+export async function appendMessages(
+	userId: string,
+	conversationId: string,
+	entries: { role: 'user' | 'assistant'; content: string }[]
+) {
 	if (entries.length === 0) return;
 	await db.insert(aiMessages).values(
 		entries.map((entry) => ({

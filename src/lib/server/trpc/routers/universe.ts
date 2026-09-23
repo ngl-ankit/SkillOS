@@ -44,7 +44,25 @@ export type UniverseGraph = {
  * computed on the server so the 2D fallback and the 3D scene always agree.
  */
 function layout(
-	phases: { id: string; title: string; position: number; topics: { topicId: string; title: string; position: number; phaseTitle: string; difficulty: number; status: string; progressPct: number; mastery: number; estimatedMinutes: number; domain: string; available: boolean; prerequisites: string[] }[] }[]
+	phases: {
+		id: string;
+		title: string;
+		position: number;
+		topics: {
+			topicId: string;
+			title: string;
+			position: number;
+			phaseTitle: string;
+			difficulty: number;
+			status: string;
+			progressPct: number;
+			mastery: number;
+			estimatedMinutes: number;
+			domain: string;
+			available: boolean;
+			prerequisites: string[];
+		}[];
+	}[]
 ) {
 	const nodes: Omit<UniverseNode, 'state' | 'kind' | 'parentId' | 'phaseTitle'>[] = [];
 	const links: { from: string; to: string; kind: UniverseLink['kind'] }[] = [];
@@ -60,7 +78,19 @@ function layout(
 		const py = phaseIndex * 2.2 - (phaseCount - 1) * 1.1;
 
 		const nodeId = `phase:${phase.id}`;
-		nodes.push({ id: nodeId, label: phase.title, domain: 'phase', difficulty: 1, progressPct: 0, mastery: 0, estimatedMinutes: 0, position: phaseIndex, x: px, y: py, z: pz });
+		nodes.push({
+			id: nodeId,
+			label: phase.title,
+			domain: 'phase',
+			difficulty: 1,
+			progressPct: 0,
+			mastery: 0,
+			estimatedMinutes: 0,
+			position: phaseIndex,
+			x: px,
+			y: py,
+			z: pz
+		});
 
 		const topicCount = Math.max(1, phase.topics.length);
 		phase.topics.forEach((topic, topicIndex) => {
@@ -77,7 +107,7 @@ function layout(
 				estimatedMinutes: topic.estimatedMinutes,
 				position: topic.position,
 				x: px + Math.cos(tAngle) * orbit,
-				y: py + ((topicIndex % 2 === 0 ? 1 : -1) * (1.1 + topicIndex * 0.28)),
+				y: py + (topicIndex % 2 === 0 ? 1 : -1) * (1.1 + topicIndex * 0.28),
 				z: pz + Math.sin(tAngle) * orbit
 			});
 			links.push({ from: nodeId, to: topic.topicId, kind: 'phase' });
@@ -89,150 +119,167 @@ function layout(
 
 export const universeRouter = ctx.router({
 	/** Full graph for the 3D skill universe and its 2D fallback. */
-	graph: ctx.protectedProcedure.input(z.object({ goalId: z.string().uuid().nullable().default(null) })).query(async ({ ctx: c, input }): Promise<UniverseGraph | null> => {
-		const goal = input.goalId ? { id: input.goalId, title: '' } : await getPrimaryGoal(c.user.id);
-		if (!goal) return null;
-		const bundle = await getRoadmapBundle(c.user.id, goal.id);
-		if (!bundle) return null;
-		const progress = await roadmapProgress(c.user.id, goal.id);
+	graph: ctx.protectedProcedure
+		.input(z.object({ goalId: z.string().uuid().nullable().default(null) }))
+		.query(async ({ ctx: c, input }): Promise<UniverseGraph | null> => {
+			const goal = input.goalId ? { id: input.goalId, title: '' } : await getPrimaryGoal(c.user.id);
+			if (!goal) return null;
+			const bundle = await getRoadmapBundle(c.user.id, goal.id);
+			if (!bundle) return null;
+			const progress = await roadmapProgress(c.user.id, goal.id);
 
-		const phaseRows = await db
-			.select()
-			.from(roadmapPhases)
-			.where(eq(roadmapPhases.roadmapId, bundle.roadmap.id))
-			.orderBy(asc(roadmapPhases.position));
+			const phaseRows = await db
+				.select()
+				.from(roadmapPhases)
+				.where(eq(roadmapPhases.roadmapId, bundle.roadmap.id))
+				.orderBy(asc(roadmapPhases.position));
 
-		const topicRows = await db.select().from(topics).where(eq(topics.roadmapId, bundle.roadmap.id)).orderBy(asc(topics.position));
-		const edges = topicRows.length > 0 ? await db.select().from(topicPrerequisites).where(inArray(topicPrerequisites.topicId, topicRows.map((t) => t.id))) : [];
-		const projectRows = await db
-			.select()
-			.from(projects)
-			.where(and(eq(projects.userId, c.user.id), eq(projects.roadmapId, bundle.roadmap.id)));
+			const topicRows = await db
+				.select()
+				.from(topics)
+				.where(eq(topics.roadmapId, bundle.roadmap.id))
+				.orderBy(asc(topics.position));
+			const edges =
+				topicRows.length > 0
+					? await db
+							.select()
+							.from(topicPrerequisites)
+							.where(
+								inArray(
+									topicPrerequisites.topicId,
+									topicRows.map((t) => t.id)
+								)
+							)
+					: [];
+			const projectRows = await db
+				.select()
+				.from(projects)
+				.where(and(eq(projects.userId, c.user.id), eq(projects.roadmapId, bundle.roadmap.id)));
 
-		const snapshotById = new Map(bundle.topics.map((t) => [t.topicId, t]));
-		const currentId = progress?.currentTopicId ?? null;
+			const snapshotById = new Map(bundle.topics.map((t) => [t.topicId, t]));
+			const currentId = progress?.currentTopicId ?? null;
 
-		const phasesForLayout = phaseRows.map((phase) => ({
-			id: phase.id,
-			title: phase.title,
-			position: phase.position,
-			topics: topicRows
-				.filter((t) => t.phaseId === phase.id)
-				.map((t) => {
-					const snap = snapshotById.get(t.id);
+			const phasesForLayout = phaseRows.map((phase) => ({
+				id: phase.id,
+				title: phase.title,
+				position: phase.position,
+				topics: topicRows
+					.filter((t) => t.phaseId === phase.id)
+					.map((t) => {
+						const snap = snapshotById.get(t.id);
+						return {
+							topicId: t.id,
+							title: t.title,
+							position: t.position,
+							phaseTitle: phase.title,
+							difficulty: t.difficulty,
+							status: snap?.status ?? 'not_started',
+							progressPct: snap?.progressPct ?? 0,
+							mastery: snap?.mastery ?? 0,
+							estimatedMinutes: t.estimatedMinutes,
+							domain: t.domain,
+							available: snap?.available ?? false,
+							prerequisites: edges.filter((e) => e.topicId === t.id).map((e) => e.prerequisiteId)
+						};
+					})
+			}));
+
+			const { nodes, links } = layout(phasesForLayout);
+			const phaseTitleById = new Map(phaseRows.map((p) => [p.id, p.title]));
+
+			const toState = (id: string, available: boolean, status: string, progressPct: number): UniverseNodeState => {
+				if (id === currentId) return 'current';
+				if (status === 'completed') return 'completed';
+				if (status === 'in_progress' || progressPct > 0) return 'in_progress';
+				return available ? 'available' : 'locked';
+			};
+
+			const enriched: UniverseNode[] = nodes.map((node) => {
+				if (node.id.startsWith('phase:')) {
+					const phaseId = node.id.slice(6);
+					const inPhase = topicRows.filter((t) => t.phaseId === phaseId);
+					const done = inPhase.filter((t) => snapshotById.get(t.id)?.status === 'completed').length;
 					return {
-						topicId: t.id,
-						title: t.title,
-						position: t.position,
-						phaseTitle: phase.title,
-						difficulty: t.difficulty,
-						status: snap?.status ?? 'not_started',
-						progressPct: snap?.progressPct ?? 0,
-						mastery: snap?.mastery ?? 0,
-						estimatedMinutes: t.estimatedMinutes,
-						domain: t.domain,
-						available: snap?.available ?? false,
-						prerequisites: edges.filter((e) => e.topicId === t.id).map((e) => e.prerequisiteId)
+						...node,
+						kind: 'phase',
+						parentId: goal.id,
+						phaseTitle: phaseTitleById.get(phaseId) ?? 'Phase',
+						state: done === inPhase.length && inPhase.length > 0 ? 'completed' : done > 0 ? 'in_progress' : 'available'
 					};
-				})
-		}));
-
-		const { nodes, links } = layout(phasesForLayout);
-		const phaseTitleById = new Map(phaseRows.map((p) => [p.id, p.title]));
-
-		const toState = (id: string, available: boolean, status: string, progressPct: number): UniverseNodeState => {
-			if (id === currentId) return 'current';
-			if (status === 'completed') return 'completed';
-			if (status === 'in_progress' || progressPct > 0) return 'in_progress';
-			return available ? 'available' : 'locked';
-		};
-
-		const enriched: UniverseNode[] = nodes.map((node) => {
-			if (node.id.startsWith('phase:')) {
-				const phaseId = node.id.slice(6);
-				const inPhase = topicRows.filter((t) => t.phaseId === phaseId);
-				const done = inPhase.filter((t) => snapshotById.get(t.id)?.status === 'completed').length;
+				}
+				const snap = snapshotById.get(node.id);
+				const topic = topicRows.find((t) => t.id === node.id);
 				return {
 					...node,
-					kind: 'phase',
-					parentId: goal.id,
-					phaseTitle: phaseTitleById.get(phaseId) ?? 'Phase',
-					state: done === inPhase.length && inPhase.length > 0 ? 'completed' : done > 0 ? 'in_progress' : 'available'
+					kind: 'topic',
+					parentId: topic ? `phase:${topic.phaseId}` : null,
+					phaseTitle: snap?.phaseTitle ?? 'Phase',
+					state: toState(node.id, snap?.available ?? false, snap?.status ?? 'not_started', snap?.progressPct ?? 0)
 				};
-			}
-			const snap = snapshotById.get(node.id);
-			const topic = topicRows.find((t) => t.id === node.id);
-			return {
-				...node,
-				kind: 'topic',
-				parentId: topic ? `phase:${topic.phaseId}` : null,
-				phaseTitle: snap?.phaseTitle ?? 'Phase',
-				state: toState(node.id, snap?.available ?? false, snap?.status ?? 'not_started', snap?.progressPct ?? 0)
-			};
-		});
-
-		// The goal anchors the scene at the origin.
-		enriched.unshift({
-			id: goal.id,
-			label: bundle.roadmap.title,
-			kind: 'goal',
-			state: 'in_progress',
-			domain: 'goal',
-			difficulty: 1,
-			progressPct: progress?.percent ?? 0,
-			mastery: 0,
-			estimatedMinutes: progress?.estimatedMinutesRemaining ?? 0,
-			phaseTitle: 'Goal',
-			position: 0,
-			x: 0,
-			y: 0,
-			z: 0,
-			parentId: null
-		});
-
-		const graphLinks: UniverseLink[] = links.map((l) => ({ ...l }));
-		for (const phase of phaseRows) graphLinks.push({ from: goal.id, to: `phase:${phase.id}`, kind: 'phase' });
-		for (const edge of edges) graphLinks.push({ from: edge.prerequisiteId, to: edge.topicId, kind: 'prerequisite' });
-
-		// Projects branch from the phase they reinforce.
-		for (const project of projectRows) {
-			const anchor = enriched.find((n) => n.id === project.topicId);
-			const phaseNode = project.phaseId ? `phase:${project.phaseId}` : null;
-			const source = phaseNode && enriched.some((n) => n.id === phaseNode) ? phaseNode : (anchor?.parentId ?? goal.id);
-			enriched.push({
-				id: project.id,
-				label: project.title,
-				kind: 'project',
-				state: 'available',
-				domain: 'project',
-				difficulty: project.difficulty,
-				progressPct: 0,
-				mastery: 0,
-				estimatedMinutes: project.estimatedHours * 60,
-				phaseTitle: project.phaseId ? (phaseTitleById.get(project.phaseId) ?? 'Project') : 'Project',
-				position: 0,
-				x: (anchor?.x ?? 0) * 1.32 + 2.4,
-				y: (anchor?.y ?? 0) + 4.2,
-				z: (anchor?.z ?? 0) * 1.32 - 2.4,
-				parentId: source
 			});
-			graphLinks.push({ from: source, to: project.id, kind: 'project' });
-		}
 
-		return {
-			goalId: goal.id,
-			goalTitle: bundle.roadmap.title,
-			nodes: enriched,
-			links: graphLinks,
-			phases: phaseRows.map((p) => ({ id: p.id, title: p.title, position: p.position })),
-			summary: {
-				total: bundle.topics.length,
-				completed: progress?.completed ?? 0,
-				percent: progress?.percent ?? 0,
-				currentTopicId: currentId
+			// The goal anchors the scene at the origin.
+			enriched.unshift({
+				id: goal.id,
+				label: bundle.roadmap.title,
+				kind: 'goal',
+				state: 'in_progress',
+				domain: 'goal',
+				difficulty: 1,
+				progressPct: progress?.percent ?? 0,
+				mastery: 0,
+				estimatedMinutes: progress?.estimatedMinutesRemaining ?? 0,
+				phaseTitle: 'Goal',
+				position: 0,
+				x: 0,
+				y: 0,
+				z: 0,
+				parentId: null
+			});
+
+			const graphLinks: UniverseLink[] = links.map((l) => ({ ...l }));
+			for (const phase of phaseRows) graphLinks.push({ from: goal.id, to: `phase:${phase.id}`, kind: 'phase' });
+			for (const edge of edges) graphLinks.push({ from: edge.prerequisiteId, to: edge.topicId, kind: 'prerequisite' });
+
+			// Projects branch from the phase they reinforce.
+			for (const project of projectRows) {
+				const anchor = enriched.find((n) => n.id === project.topicId);
+				const phaseNode = project.phaseId ? `phase:${project.phaseId}` : null;
+				const source = phaseNode && enriched.some((n) => n.id === phaseNode) ? phaseNode : (anchor?.parentId ?? goal.id);
+				enriched.push({
+					id: project.id,
+					label: project.title,
+					kind: 'project',
+					state: 'available',
+					domain: 'project',
+					difficulty: project.difficulty,
+					progressPct: 0,
+					mastery: 0,
+					estimatedMinutes: project.estimatedHours * 60,
+					phaseTitle: project.phaseId ? (phaseTitleById.get(project.phaseId) ?? 'Project') : 'Project',
+					position: 0,
+					x: (anchor?.x ?? 0) * 1.32 + 2.4,
+					y: (anchor?.y ?? 0) + 4.2,
+					z: (anchor?.z ?? 0) * 1.32 - 2.4,
+					parentId: source
+				});
+				graphLinks.push({ from: source, to: project.id, kind: 'project' });
 			}
-		};
-	}),
+
+			return {
+				goalId: goal.id,
+				goalTitle: bundle.roadmap.title,
+				nodes: enriched,
+				links: graphLinks,
+				phases: phaseRows.map((p) => ({ id: p.id, title: p.title, position: p.position })),
+				summary: {
+					total: bundle.topics.length,
+					completed: progress?.completed ?? 0,
+					percent: progress?.percent ?? 0,
+					currentTopicId: currentId
+				}
+			};
+		}),
 
 	/** Detail panel payload for a selected node. */
 	node: ctx.protectedProcedure.input(z.object({ id: z.string().min(1) })).query(async ({ ctx: c, input }) => {
@@ -259,7 +306,14 @@ export const universeRouter = ctx.router({
 				prerequisites: snap.prerequisiteTitles,
 				minutesSpent: snap.minutesSpent,
 				nextReviewAt: snap.nextReviewAt,
-				nextAction: snap.status === 'completed' ? 'Revisit or revise' : snap.available ? (snap.progressPct > 0 ? 'Continue learning' : 'Start this topic') : 'Locked until prerequisites are complete'
+				nextAction:
+					snap.status === 'completed'
+						? 'Revisit or revise'
+						: snap.available
+							? snap.progressPct > 0
+								? 'Continue learning'
+								: 'Start this topic'
+							: 'Locked until prerequisites are complete'
 			};
 		}
 		const project = bundle.projectList.find((p) => p.id === input.id);
@@ -321,7 +375,10 @@ export const universeRouter = ctx.router({
 			domain: 'goal',
 			difficulty: 1,
 			estimatedMinutes: bundle.topics.reduce((sum, t) => sum + t.estimatedMinutes, 0),
-			progressPct: bundle.topics.length > 0 ? Math.round((bundle.topics.filter((t) => t.status === 'completed').length / bundle.topics.length) * 100) : 0,
+			progressPct:
+				bundle.topics.length > 0
+					? Math.round((bundle.topics.filter((t) => t.status === 'completed').length / bundle.topics.length) * 100)
+					: 0,
 			mastery: 0,
 			status: roadmap?.status ?? 'ready',
 			available: true,

@@ -1,12 +1,12 @@
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
+import { aiAvailable, modelId } from '$server/ai/client';
 import { db } from '$server/db';
 import { profiles, userPreferences } from '$server/db/schema';
 import { getPreferences, getProfile, listGoals } from '$server/services/access';
 import { activitySeries, buildToday } from '$server/services/dashboard';
 import { learningStats } from '$server/services/insights';
 import { streak, weakTopics } from '$server/services/progress';
-import { aiAvailable, modelId } from '$server/ai/client';
 import { ctx } from '../init';
 
 const level = z.enum(['beginner', 'intermediate', 'advanced']);
@@ -14,7 +14,11 @@ const level = z.enum(['beginner', 'intermediate', 'advanced']);
 export const profileRouter = ctx.router({
 	/** Single bootstrap payload for the shell: identity, preferences, AI status. */
 	me: ctx.protectedProcedure.query(async ({ ctx: c }) => {
-		const [profile, preferences, goalList] = await Promise.all([getProfile(c.user.id), getPreferences(c.user.id), listGoals(c.user.id)]);
+		const [profile, preferences, goalList] = await Promise.all([
+			getProfile(c.user.id),
+			getPreferences(c.user.id),
+			listGoals(c.user.id)
+		]);
 		return {
 			user: { id: c.user.id, name: c.user.name, email: c.user.email },
 			profile,
@@ -26,7 +30,11 @@ export const profileRouter = ctx.router({
 	}),
 
 	overview: ctx.protectedProcedure
-		.input(z.object({ today: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), days: z.number().int().min(7).max(90).default(14) }).default({ today: new Date().toISOString().slice(0, 10), days: 14 }))
+		.input(
+			z
+				.object({ today: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), days: z.number().int().min(7).max(90).default(14) })
+				.default({ today: new Date().toISOString().slice(0, 10), days: 14 })
+		)
 		.query(async ({ ctx: c, input }) => {
 			const [stats, series, days, weak, today] = await Promise.all([
 				learningStats(c.user.id, input.today),

@@ -1,5 +1,4 @@
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
-import { AppError } from '../errors';
 import { db } from '../db';
 import {
 	aiMemory,
@@ -19,6 +18,7 @@ import {
 } from '../db/schema';
 import { retention } from '../engine/srs';
 import type { TopicSnapshot } from '../engine/types';
+import { AppError } from '../errors';
 
 export type Profile = typeof profiles.$inferSelect;
 export type Preferences = typeof userPreferences.$inferSelect;
@@ -108,14 +108,23 @@ export async function getRoadmapBundle(userId: string, goalId?: string | null): 
 		.limit(1);
 	if (!roadmap) return null;
 
-	const phases = await db.select().from(roadmapPhases).where(eq(roadmapPhases.roadmapId, roadmap.id)).orderBy(asc(roadmapPhases.position));
+	const phases = await db
+		.select()
+		.from(roadmapPhases)
+		.where(eq(roadmapPhases.roadmapId, roadmap.id))
+		.orderBy(asc(roadmapPhases.position));
 	const topicRows = await db.select().from(topics).where(eq(topics.roadmapId, roadmap.id)).orderBy(asc(topics.position));
 
 	const topicIds = topicRows.map((t) => t.id);
 	const [progressRows, edgeRows, projectRows] = await Promise.all([
 		topicIds.length > 0 ? db.select().from(topicProgress).where(inArray(topicProgress.topicId, topicIds)) : Promise.resolve([]),
-		topicIds.length > 0 ? db.select().from(topicPrerequisites).where(inArray(topicPrerequisites.topicId, topicIds)) : Promise.resolve([]),
-		db.select().from(projects).where(and(eq(projects.userId, userId), eq(projects.roadmapId, roadmap.id)))
+		topicIds.length > 0
+			? db.select().from(topicPrerequisites).where(inArray(topicPrerequisites.topicId, topicIds))
+			: Promise.resolve([]),
+		db
+			.select()
+			.from(projects)
+			.where(and(eq(projects.userId, userId), eq(projects.roadmapId, roadmap.id)))
 	]);
 
 	const projectIds = projectRows.map((p) => p.id);
@@ -141,16 +150,15 @@ export async function getRoadmapBundle(userId: string, goalId?: string | null): 
 		(a, b) => phases.findIndex((p) => p.id === a.phaseId) - phases.findIndex((p) => p.id === b.phaseId) || a.position - b.position
 	);
 
-	const completedIds = new Set(
-		orderedTopics.filter((t) => progressByTopic.get(t.id)?.status === 'completed').map((t) => t.id)
-	);
+	const completedIds = new Set(orderedTopics.filter((t) => progressByTopic.get(t.id)?.status === 'completed').map((t) => t.id));
 
 	const snapshots: TopicSnapshot[] = orderedTopics.map((topic) => {
 		const progress = progressByTopic.get(topic.id);
 		const prereqIds = prereqsByTopic.get(topic.id) ?? [];
 		const status = progress?.status ?? 'not_started';
 		// A topic unlocks when every prerequisite is completed. Prior-knowledge topics skip the gate.
-		const available = status !== 'not_started' || progress?.priorKnowledge === true || prereqIds.every((id) => completedIds.has(id));
+		const available =
+			status !== 'not_started' || progress?.priorKnowledge === true || prereqIds.every((id) => completedIds.has(id));
 		return {
 			topicId: topic.id,
 			title: topic.title,

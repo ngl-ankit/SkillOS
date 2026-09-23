@@ -15,7 +15,13 @@ export const DESIGN_BUSINESS_TOPICS: CatalogTopic[] = [
 		practice: [{ title: 'Redesign a screen', prompt: 'Improve a cluttered settings screen using only hierarchy and spacing.' }],
 		resources: { primary: 'refactoring-ui', alternative: 'apple-hig', practice: 'laws-of-ux' },
 		questions: [
-			mcq('Best way to de-emphasise secondary text?', ['Smaller and lower contrast', 'All caps', 'New font', 'Add an icon'], 'a', 'Visual hierarchy', 'Size and contrast.'),
+			mcq(
+				'Best way to de-emphasise secondary text?',
+				['Smaller and lower contrast', 'All caps', 'New font', 'Add an icon'],
+				'a',
+				'Visual hierarchy',
+				'Size and contrast.'
+			),
 			tf('More whitespace makes interfaces less clear.', false, 'Spacing and rhythm', 'Whitespace groups items.'),
 			short(
 				'Why use a consistent spacing scale?',
@@ -36,10 +42,18 @@ export const DESIGN_BUSINESS_TOPICS: CatalogTopic[] = [
 		skills: ['typography', 'color'],
 		concepts: ['Type scale', 'Line length and height', 'Font pairing', 'Color roles', 'Contrast ratios'],
 		prerequisites: ['design-principles'],
-		practice: [{ title: 'Build a palette', prompt: 'Dark palette with background, surface, text, muted, accent and danger; check 4.5:1.' }],
+		practice: [
+			{ title: 'Build a palette', prompt: 'Dark palette with background, surface, text, muted, accent and danger; check 4.5:1.' }
+		],
 		resources: { primary: 'practical-typography', alternative: 'material-color', practice: 'wcag-quickref' },
 		questions: [
-			mcq('Comfortable body line length?', ['20–30 chars', '45–90 chars', '120–150 chars', 'Full width'], 'b', 'Line length and height', 'Long lines are hard to track.'),
+			mcq(
+				'Comfortable body line length?',
+				['20–30 chars', '45–90 chars', '120–150 chars', 'Full width'],
+				'b',
+				'Line length and height',
+				'Long lines are hard to track.'
+			),
 			mcq('WCAG AA contrast for normal text?', ['2:1', '3:1', '4.5:1', '7:1'], 'c', 'Contrast ratios', '4.5:1.'),
 			tf('Color should never be the only carrier of meaning.', true, 'Color roles', 'Pair with text or icons.')
 		]
@@ -60,7 +74,13 @@ export const DESIGN_BUSINESS_TOPICS: CatalogTopic[] = [
 		],
 		resources: { primary: 'nng-heuristics', alternative: 'nng-user-interviews', practice: 'laws-of-ux' },
 		questions: [
-			mcq('Least leading interview question?', ['Would you use X?', 'Don’t you hate X?', 'Tell me about the last time you did X.', 'What would you pay?'], 'c', 'User interviews', 'Past behaviour gives facts.'),
+			mcq(
+				'Least leading interview question?',
+				['Would you use X?', 'Don’t you hate X?', 'Tell me about the last time you did X.', 'What would you pay?'],
+				'c',
+				'User interviews',
+				'Past behaviour gives facts.'
+			),
 			tf('About five users often reveal most major usability problems.', true, 'Usability testing', 'Run small rounds.'),
 			short(
 				'What is a journey map for?',
@@ -84,7 +104,13 @@ export const DESIGN_BUSINESS_TOPICS: CatalogTopic[] = [
 		practice: [{ title: 'Prototype', prompt: 'Wireframe and prototype a 3-screen onboarding; test with two people.' }],
 		resources: { primary: 'figma-learn', alternative: 'google-ux-certificate' },
 		questions: [
-			mcq('Why start low-fidelity?', ['Looks better', 'Fast to change; feedback stays on structure', 'Devs prefer it', 'Final copy'], 'b', 'Low vs high fidelity', 'Cheap artefacts.'),
+			mcq(
+				'Why start low-fidelity?',
+				['Looks better', 'Fast to change; feedback stays on structure', 'Devs prefer it', 'Final copy'],
+				'b',
+				'Low vs high fidelity',
+				'Cheap artefacts.'
+			),
 			tf('Components with variants reduce inconsistency.', true, 'Components and variants', 'Single source of truth.')
 		]
 	},
@@ -101,7 +127,13 @@ export const DESIGN_BUSINESS_TOPICS: CatalogTopic[] = [
 		practice: [{ title: 'Token set', prompt: 'Define tokens and build three components using only them.' }],
 		resources: { primary: 'atomic-design', alternative: 'material-color' },
 		questions: [
-			mcq('A design token is…', ['A credential', 'A named reusable design decision', 'A plugin', 'A framework'], 'b', 'Design tokens', 'Keeps design and code in sync.'),
+			mcq(
+				'A design token is…',
+				['A credential', 'A named reusable design decision', 'A plugin', 'A framework'],
+				'b',
+				'Design tokens',
+				'Keeps design and code in sync.'
+			),
 			tf('Molecules combine atoms like a label, input and button.', true, 'Atomic design', 'Atoms → molecules → organisms.')
 		]
 	},
@@ -121,7 +153,13 @@ export const DESIGN_BUSINESS_TOPICS: CatalogTopic[] = [
 		],
 		resources: { primary: 'yc-talk-to-users', alternative: 'mom-test', practice: 'yc-library' },
 		questions: [
-			mcq('Main purpose of an MVP?', ['Polished launch', 'Learn if core assumptions hold with minimal effort', 'Fundraising', 'Impress competitors'], 'b', 'MVP', 'A learning tool.'),
+			mcq(
+				'Main purpose of an MVP?',
+				['Polished launch', 'Learn if core assumptions hold with minimal effort', 'Fundraising', 'Impress competitors'],
+				'b',
+				'MVP',
+				'A learning tool.'
+			),
 			tf('Compliments are strong evidence of demand.', false, 'Customer interviews', 'Commitment is evidence.'),
 			short(
 				'Why focus on the problem before the solution?',
@@ -148,7 +186,13 @@ export const DESIGN_BUSINESS_TOPICS: CatalogTopic[] = [
 		],
 		resources: { primary: 'business-model-canvas', alternative: 'pg-essays', practice: 'yc-library' },
 		questions: [
-			mcq('Sustainable subscriptions need…', ['CAC > LTV', 'LTV comfortably > CAC', 'Zero churn', 'Lowest price'], 'b', 'Unit economics', 'Customers worth more than they cost.'),
+			mcq(
+				'Sustainable subscriptions need…',
+				['CAC > LTV', 'LTV comfortably > CAC', 'Zero churn', 'Lowest price'],
+				'b',
+				'Unit economics',
+				'Customers worth more than they cost.'
+			),
 			tf('A value proposition explains why a segment chooses you.', true, 'Value proposition', 'Links pains to your offer.')
 		]
 	},
@@ -165,7 +209,13 @@ export const DESIGN_BUSINESS_TOPICS: CatalogTopic[] = [
 		practice: [{ title: 'Metric tree', prompt: 'Define a North Star and 3–5 input metrics.' }],
 		resources: { primary: 'north-star-playbook', alternative: 'svpg-inspired', practice: 'yc-library' },
 		questions: [
-			mcq('Strongest product–market fit signal?', ['Sign-ups', 'Page views', 'Retention', 'Followers'], 'c', 'Retention cohorts', 'Returning users.'),
+			mcq(
+				'Strongest product–market fit signal?',
+				['Sign-ups', 'Page views', 'Retention', 'Followers'],
+				'c',
+				'Retention cohorts',
+				'Returning users.'
+			),
 			tf('A North Star reflects customer value, not just revenue.', true, 'North Star metric', 'Revenue lags value.')
 		]
 	},
@@ -182,7 +232,13 @@ export const DESIGN_BUSINESS_TOPICS: CatalogTopic[] = [
 		practice: [{ title: 'One-page spec', prompt: 'Problem, users, metric, scope, non-goals, open questions.' }],
 		resources: { primary: 'svpg-inspired', alternative: 'yc-library' },
 		questions: [
-			mcq('Outcome-based roadmaps focus on…', ['Feature dates', 'Problems and measurable outcomes', 'Tasks', 'Competitors'], 'b', 'Outcome-based roadmaps', 'Room for the best solution.'),
+			mcq(
+				'Outcome-based roadmaps focus on…',
+				['Feature dates', 'Problems and measurable outcomes', 'Tasks', 'Competitors'],
+				'b',
+				'Outcome-based roadmaps',
+				'Room for the best solution.'
+			),
 			short(
 				'Why include non-goals in a spec?',
 				'They set scope boundaries, prevent scope creep and align the team.',

@@ -1,11 +1,20 @@
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { humanMinutes, pct, relTime, todayISO } from '$lib/utils';
-import { db } from '$server/db';
-import { learningSessions, notes, projects, resources, savedResources, topicResources, topicProgress, topics } from '$server/db/schema';
 import { RESOURCES } from '$server/catalog';
+import { db } from '$server/db';
+import {
+	learningSessions,
+	notes,
+	projects,
+	resources,
+	savedResources,
+	topicProgress,
+	topicResources,
+	topics
+} from '$server/db/schema';
 import { AppError } from '$server/errors';
-import { getRoadmapBundle, getPrimaryGoal } from '$server/services/access';
+import { getPrimaryGoal, getRoadmapBundle } from '$server/services/access';
 import { ctx } from '../init';
 
 export const resourcesRouter = ctx.router({
@@ -33,19 +42,23 @@ export const resourcesRouter = ctx.router({
 			const savedBySlug = new Map<string, { status: string; savedAt: Date }>();
 			if (savedRows.length > 0) {
 				const ids = savedRows.map((s) => s.resourceId);
-				for (const row of await db.select({ id: resources.id, slug: resources.slug }).from(resources).where(inArray(resources.id, ids))) {
+				for (const row of await db
+					.select({ id: resources.id, slug: resources.slug })
+					.from(resources)
+					.where(inArray(resources.id, ids))) {
 					const saved = savedRows.find((s) => s.resourceId === row.id);
 					if (saved) savedBySlug.set(row.slug, { status: saved.status, savedAt: saved.createdAt });
 				}
 			}
 
 			// Which catalog resources belong to the learner's own current roadmap.
-			const catalogKeys = (bundle?.topics ?? [])
-				.map((t) => t.topicId)
-				.filter(Boolean);
+			const catalogKeys = (bundle?.topics ?? []).map((t) => t.topicId).filter(Boolean);
 			const topicRows =
 				catalogKeys.length > 0
-					? await db.select({ id: topics.id, catalogKey: topics.catalogKey, title: topics.title }).from(topics).where(inArray(topics.id, catalogKeys))
+					? await db
+							.select({ id: topics.id, catalogKey: topics.catalogKey, title: topics.title })
+							.from(topics)
+							.where(inArray(topics.id, catalogKeys))
 					: [];
 			const currentSlugs = new Map<string, string>();
 			if (bundle) {
@@ -66,7 +79,8 @@ export const resourcesRouter = ctx.router({
 				if (input.type !== 'all' && r.type !== input.type) return false;
 				if (input.cost !== 'all' && r.cost !== input.cost) return false;
 				if (input.difficulty !== 'all' && String(r.difficulty) !== input.difficulty) return false;
-				if (query.length >= 2 && !(`${r.title} ${r.provider} ${r.description} ${r.tags.join(' ')}`.toLowerCase().includes(query))) return false;
+				if (query.length >= 2 && !`${r.title} ${r.provider} ${r.description} ${r.tags.join(' ')}`.toLowerCase().includes(query))
+					return false;
 				if (input.savedOnly && !savedBySlug.has(r.slug)) return false;
 				return true;
 			});
@@ -120,8 +134,13 @@ export const resourcesRouter = ctx.router({
 		const byId = new Map(topicRows.map((t) => [t.id, t]));
 
 		const current =
-			bundle.topics.find((t) => t.status === 'in_progress') ?? bundle.topics.find((t) => t.available && t.status === 'not_started') ?? null;
-		const weak = [...bundle.topics].filter((t) => t.status !== 'not_started' && t.mastery < 70).sort((a, b) => a.mastery - b.mastery).slice(0, 2);
+			bundle.topics.find((t) => t.status === 'in_progress') ??
+			bundle.topics.find((t) => t.available && t.status === 'not_started') ??
+			null;
+		const weak = [...bundle.topics]
+			.filter((t) => t.status !== 'not_started' && t.mastery < 70)
+			.sort((a, b) => a.mastery - b.mastery)
+			.slice(0, 2);
 
 		const collect = (snap: { topicId: string } | null) => {
 			if (!snap) return [];
@@ -166,7 +185,7 @@ export const resourcesRouter = ctx.router({
 						difficulty: catalog.difficulty,
 						cost: catalog.cost,
 						estimatedMinutes: catalog.minutes,
-						prerequisites: [],
+						prerequisites: '',
 						description: catalog.description,
 						whyUseful: catalog.why,
 						tags: catalog.tags
@@ -178,7 +197,10 @@ export const resourcesRouter = ctx.router({
 			const [saved] = await db
 				.insert(savedResources)
 				.values({ userId: c.user.id, resourceId: row.id, status: input.status })
-				.onConflictDoUpdate({ target: [savedResources.userId, savedResources.resourceId], set: { status: input.status, updatedAt: new Date() } })
+				.onConflictDoUpdate({
+					target: [savedResources.userId, savedResources.resourceId],
+					set: { status: input.status, updatedAt: new Date() }
+				})
 				.returning();
 			return { resource: row, saved };
 		}),
@@ -192,13 +214,26 @@ export const resourcesRouter = ctx.router({
 
 	/** Logs study time against a resource by way of its parent topic. */
 	markLearned: ctx.protectedProcedure
-		.input(z.object({ slug: z.string().max(120), minutes: z.number().int().min(1).max(600), topicId: z.string().uuid().nullable().default(null) }))
+		.input(
+			z.object({
+				slug: z.string().max(120),
+				minutes: z.number().int().min(1).max(600),
+				topicId: z.string().uuid().nullable().default(null)
+			})
+		)
 		.mutation(async ({ ctx: c, input }) => {
 			const { applyProgress, logSession } = await import('$server/services/progress');
 			if (input.topicId) {
 				await applyProgress(c.user.id, { topicId: input.topicId }, input.minutes);
 			}
-			await logSession({ userId: c.user.id, topicId: input.topicId, kind: 'learn', minutes: input.minutes, day: todayISO(), summary: `Studied resource ${input.slug}` });
+			await logSession({
+				userId: c.user.id,
+				topicId: input.topicId,
+				kind: 'learn',
+				minutes: input.minutes,
+				day: todayISO(),
+				summary: `Studied resource ${input.slug}`
+			});
 			return { ok: true };
 		}),
 

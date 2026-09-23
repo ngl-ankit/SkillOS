@@ -122,27 +122,73 @@ export async function learningStats(userId: string, today: string): Promise<Lear
 }
 
 /** Deterministic diagnosis used when AI is disabled or fails. */
-export function fallbackInsight(stats: LearningStats, weak: { title: string; mastery: number; reasons: string[] }[], revision: { title: string; state: string; overdueDays: number }[]): Insight {
+export function fallbackInsight(
+	stats: LearningStats,
+	weak: { title: string; mastery: number; reasons: string[] }[],
+	revision: { title: string; state: string; overdueDays: number }[]
+): Insight {
 	const observations: string[] = [];
 	const actions: { title: string; detail: string; minutes: number }[] = [];
 
 	if (stats.activeDaysLast30 === 0) {
 		observations.push('No study sessions recorded yet, so there is nothing to diagnose.');
-		actions.push({ title: 'Complete one session', detail: 'Finish a single item from today’s plan to establish a baseline.', minutes: 15 });
+		actions.push({
+			title: 'Complete one session',
+			detail: 'Finish a single item from today’s plan to establish a baseline.',
+			minutes: 15
+		});
 	} else {
-		observations.push(`${stats.activeDaysLast30} active days in the last 30, averaging ${Math.round(stats.minutesLast7 / 7)} min per day this week.`);
+		observations.push(
+			`${stats.activeDaysLast30} active days in the last 30, averaging ${Math.round(stats.minutesLast7 / 7)} min per day this week.`
+		);
 	}
-	if (stats.topicCompletion.percent > 0) observations.push(`${stats.topicCompletion.completed} of ${stats.topicCompletion.total} roadmap topics are complete (${stats.topicCompletion.percent}%).`);
-	if (stats.planAdherence !== null && stats.planAdherence < 60) observations.push(`Only ${stats.planAdherence}% of finished daily plans were completed in full — the daily budget may be too ambitious.`);
-	if (stats.assessmentAverage !== null) observations.push(`Assessment average is ${stats.assessmentAverage}% across ${stats.assessmentCount} attempts.`);
+	if (stats.topicCompletion.percent > 0)
+		observations.push(
+			`${stats.topicCompletion.completed} of ${stats.topicCompletion.total} roadmap topics are complete (${stats.topicCompletion.percent}%).`
+		);
+	if (stats.planAdherence !== null && stats.planAdherence < 60)
+		observations.push(
+			`Only ${stats.planAdherence}% of finished daily plans were completed in full — the daily budget may be too ambitious.`
+		);
+	if (stats.assessmentAverage !== null)
+		observations.push(`Assessment average is ${stats.assessmentAverage}% across ${stats.assessmentCount} attempts.`);
 	const due = revision.filter((r) => r.state === 'due');
-	if (due.length > 0) observations.push(`${due.length} topic${due.length === 1 ? '' : 's'} are past their review date, the highest being ${due[0].title}.`);
-	if (weak.length > 0) observations.push(`Lowest retention: ${weak.slice(0, 3).map((w) => `${w.title} (${w.mastery}%)`).join(', ')}.`);
+	if (due.length > 0)
+		observations.push(
+			`${due.length} topic${due.length === 1 ? '' : 's'} are past their review date, the highest being ${due[0].title}.`
+		);
+	if (weak.length > 0)
+		observations.push(
+			`Lowest retention: ${weak
+				.slice(0, 3)
+				.map((w) => `${w.title} (${w.mastery}%)`)
+				.join(', ')}.`
+		);
 
-	if (due.length > 0) actions.push({ title: `Revise ${due[0].title}`, detail: 'Redo one practice item, then explain the idea aloud.', minutes: 15 });
-	if (weak.length > 0) actions.push({ title: `Re-test ${weak[0].title}`, detail: 'Take the topic assessment again once you have reviewed the concept list.', minutes: 20 });
-	if (stats.planAdherence !== null && stats.planAdherence < 60) actions.push({ title: 'Reduce your daily budget', detail: 'Lower your daily minutes in settings so the plan matches the time you actually have.', minutes: 5 });
-	if (actions.length < 3 && stats.projectsCompleted === 0) actions.push({ title: 'Advance your project', detail: 'Finish the next milestone so the theory has something to attach to.', minutes: 30 });
+	if (due.length > 0)
+		actions.push({
+			title: `Revise ${due[0].title}`,
+			detail: 'Redo one practice item, then explain the idea aloud.',
+			minutes: 15
+		});
+	if (weak.length > 0)
+		actions.push({
+			title: `Re-test ${weak[0].title}`,
+			detail: 'Take the topic assessment again once you have reviewed the concept list.',
+			minutes: 20
+		});
+	if (stats.planAdherence !== null && stats.planAdherence < 60)
+		actions.push({
+			title: 'Reduce your daily budget',
+			detail: 'Lower your daily minutes in settings so the plan matches the time you actually have.',
+			minutes: 5
+		});
+	if (actions.length < 3 && stats.projectsCompleted === 0)
+		actions.push({
+			title: 'Advance your project',
+			detail: 'Finish the next milestone so the theory has something to attach to.',
+			minutes: 30
+		});
 
 	return {
 		headline:
@@ -166,7 +212,12 @@ export async function insightInput(userId: string, today: string) {
 		learningStats(userId, today),
 		db.select().from(checkIns).where(eq(checkIns.userId, userId)).orderBy(desc(checkIns.day)).limit(10),
 		db
-			.select({ title: assessments.title, score: assessmentAttempts.score, passed: assessmentAttempts.passed, summary: assessmentAttempts.summary })
+			.select({
+				title: assessments.title,
+				score: assessmentAttempts.score,
+				passed: assessmentAttempts.passed,
+				summary: assessmentAttempts.summary
+			})
 			.from(assessmentAttempts)
 			.innerJoin(assessments, eq(assessments.id, assessmentAttempts.assessmentId))
 			.where(eq(assessmentAttempts.userId, userId))
@@ -177,6 +228,7 @@ export async function insightInput(userId: string, today: string) {
 }
 
 export { subjectsMerge };
+
 function subjectsMerge(a: string[], b: string[]) {
 	return [...new Set([...a, ...b])];
 }

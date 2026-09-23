@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { page } from '$app/state';
+	
 	import { goto } from '$app/navigation';
+import { page } from '$app/state';
 
 	const status = $derived(page.status);
 	const isNotFound = $derived(status === 404);

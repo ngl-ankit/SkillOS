@@ -26,6 +26,10 @@ export default defineConfig({
 		port: PORT,
 		reuseExistingServer: !process.env.CI,
 		timeout: 180_000,
-		env: { DATABASE_URL: process.env.DATABASE_URL ?? '', BETTER_AUTH_SECRET: 'e2e-secret-0123456789abcdef', PUBLIC_APP_URL: `http://127.0.0.1:${PORT}` }
+		env: {
+			DATABASE_URL: process.env.DATABASE_URL ?? '',
+			BETTER_AUTH_SECRET: 'e2e-secret-0123456789abcdef',
+			PUBLIC_APP_URL: `http://127.0.0.1:${PORT}`
+		}
 	}
 });

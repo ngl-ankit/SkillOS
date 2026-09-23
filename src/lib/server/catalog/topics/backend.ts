@@ -6,7 +6,8 @@ export const BACKEND_TOPICS: CatalogTopic[] = [
 		key: 'node-basics',
 		title: 'Server-side JavaScript with Node',
 		domain: 'Backend',
-		description: 'Run JavaScript on the server: the event loop, modules, the file system, environment variables and a minimal HTTP server.',
+		description:
+			'Run JavaScript on the server: the event loop, modules, the file system, environment variables and a minimal HTTP server.',
 		difficulty: 2,
 		minutes: 150,
 		skills: ['node', 'nodejs', 'bun', 'backend'],
@@ -18,9 +19,26 @@ export const BACKEND_TOPICS: CatalogTopic[] = [
 		],
 		resources: { primary: 'node-learn', alternative: 'full-stack-open', practice: 'express-guide' },
 		questions: [
-			mcq('Why is blocking the event loop harmful?', ['More memory', 'No other requests are handled until it finishes', 'Crashes the process', 'Disables async'], 'b', 'Non-blocking I/O', 'JS runs on one thread.'),
-			tf('Secrets should come from environment variables, not source code.', true, 'Environment variables', 'Keeps secrets out of the repo.'),
-			mcq('Which global does NOT exist in Node by default?', ['process', 'console', 'window', 'setTimeout'], 'c', 'Runtime vs browser', 'window is browser-only.')
+			mcq(
+				'Why is blocking the event loop harmful?',
+				['More memory', 'No other requests are handled until it finishes', 'Crashes the process', 'Disables async'],
+				'b',
+				'Non-blocking I/O',
+				'JS runs on one thread.'
+			),
+			tf(
+				'Secrets should come from environment variables, not source code.',
+				true,
+				'Environment variables',
+				'Keeps secrets out of the repo.'
+			),
+			mcq(
+				'Which global does NOT exist in Node by default?',
+				['process', 'console', 'window', 'setTimeout'],
+				'c',
+				'Runtime vs browser',
+				'window is browser-only.'
+			)
 		]
 	},
 	{
@@ -40,7 +58,13 @@ export const BACKEND_TOPICS: CatalogTopic[] = [
 		resources: { primary: 'express-guide', alternative: 'mdn-http-methods', practice: 'full-stack-open' },
 		questions: [
 			mcq('Status for a POST that created a resource?', ['200', '201', '204', '302'], 'b', 'Status codes', '201 Created.'),
-			mcq('Which method is idempotent?', ['POST', 'PUT', 'PATCH (always)', 'None'], 'b', 'HTTP methods', 'Repeating PUT gives the same state.'),
+			mcq(
+				'Which method is idempotent?',
+				['POST', 'PUT', 'PATCH (always)', 'None'],
+				'b',
+				'HTTP methods',
+				'Repeating PUT gives the same state.'
+			),
 			tf('Client-side validation alone protects an API.', false, 'Input validation', 'Always validate on the server.'),
 			short(
 				'What is middleware?',
@@ -55,7 +79,8 @@ export const BACKEND_TOPICS: CatalogTopic[] = [
 		key: 'sql-fundamentals',
 		title: 'SQL fundamentals',
 		domain: 'Databases',
-		description: 'Query relational data with SELECT, filter and sort, join tables, aggregate with GROUP BY and modify rows safely.',
+		description:
+			'Query relational data with SELECT, filter and sort, join tables, aggregate with GROUP BY and modify rows safely.',
 		difficulty: 2,
 		minutes: 180,
 		skills: ['sql', 'postgres', 'mysql', 'database'],
@@ -67,8 +92,20 @@ export const BACKEND_TOPICS: CatalogTopic[] = [
 		],
 		resources: { primary: 'sqlbolt', alternative: 'postgres-tutorial', practice: 'pg-exercises' },
 		questions: [
-			mcq('Which JOIN keeps all left rows even without a match?', ['INNER', 'LEFT', 'CROSS', 'SELF'], 'b', 'JOINs', 'Unmatched rows get NULLs.'),
-			mcq('Which clause filters groups after aggregation?', ['WHERE', 'HAVING', 'ORDER BY', 'LIMIT'], 'b', 'GROUP BY and aggregates', 'HAVING filters groups.'),
+			mcq(
+				'Which JOIN keeps all left rows even without a match?',
+				['INNER', 'LEFT', 'CROSS', 'SELF'],
+				'b',
+				'JOINs',
+				'Unmatched rows get NULLs.'
+			),
+			mcq(
+				'Which clause filters groups after aggregation?',
+				['WHERE', 'HAVING', 'ORDER BY', 'LIMIT'],
+				'b',
+				'GROUP BY and aggregates',
+				'HAVING filters groups.'
+			),
 			tf('`WHERE email = NULL` finds rows without email.', false, 'NULL handling', 'Use IS NULL.'),
 			code(
 				'Return each customer_id and order count from `orders`, most first.',
@@ -90,12 +127,21 @@ export const BACKEND_TOPICS: CatalogTopic[] = [
 		concepts: ['Primary and foreign keys', 'Relationships', 'Normalisation', 'Constraints', 'Indexes', 'Transactions'],
 		prerequisites: ['sql-fundamentals'],
 		practice: [
-			{ title: 'Model a library', prompt: 'Books, authors (many-to-many), members and loans with keys, constraints and an index.' },
+			{
+				title: 'Model a library',
+				prompt: 'Books, authors (many-to-many), members and loans with keys, constraints and an index.'
+			},
 			{ title: 'Explain a query', prompt: 'EXPLAIN ANALYZE a slow query, add an index, compare.' }
 		],
 		resources: { primary: 'postgres-tutorial', alternative: 'drizzle-docs', practice: 'pg-exercises' },
 		questions: [
-			mcq('Many-to-many is modeled with…', ['A CSV column', 'A join table with two foreign keys', 'Duplicate rows', 'JSON'], 'b', 'Relationships', 'A junction table.'),
+			mcq(
+				'Many-to-many is modeled with…',
+				['A CSV column', 'A join table with two foreign keys', 'Duplicate rows', 'JSON'],
+				'b',
+				'Relationships',
+				'A junction table.'
+			),
 			tf('Indexes speed reads but cost writes.', true, 'Indexes', 'Each write maintains the index.'),
 			short(
 				'Why wrap related writes in a transaction?',
@@ -110,7 +156,8 @@ export const BACKEND_TOPICS: CatalogTopic[] = [
 		key: 'auth-security',
 		title: 'Authentication and web security',
 		domain: 'Backend',
-		description: 'Authenticate with hashed passwords and secure sessions, authorise every request, and defend against the OWASP Top Ten.',
+		description:
+			'Authenticate with hashed passwords and secure sessions, authorise every request, and defend against the OWASP Top Ten.',
 		difficulty: 4,
 		minutes: 180,
 		skills: ['security', 'auth', 'authentication'],
@@ -122,8 +169,20 @@ export const BACKEND_TOPICS: CatalogTopic[] = [
 		],
 		resources: { primary: 'owasp-top-ten', alternative: 'owasp-auth-cheatsheet', practice: 'owasp-session-cheatsheet' },
 		questions: [
-			mcq('How should passwords be stored?', ['AES encrypted', 'Slow salted hash (bcrypt/scrypt/argon2)', 'Base64', 'Plain text'], 'b', 'Password hashing', 'Hashes resist brute force.'),
-			mcq('Changing /notes/42 to /43 shows another user’s note. What failed?', ['Authentication', 'Authorization', 'Encryption', 'Rate limiting'], 'b', 'Authorization checks', 'Check ownership (IDOR).'),
+			mcq(
+				'How should passwords be stored?',
+				['AES encrypted', 'Slow salted hash (bcrypt/scrypt/argon2)', 'Base64', 'Plain text'],
+				'b',
+				'Password hashing',
+				'Hashes resist brute force.'
+			),
+			mcq(
+				'Changing /notes/42 to /43 shows another user’s note. What failed?',
+				['Authentication', 'Authorization', 'Encryption', 'Rate limiting'],
+				'b',
+				'Authorization checks',
+				'Check ownership (IDOR).'
+			),
 			tf('HttpOnly cookies cannot be read by JavaScript.', true, 'Sessions and cookies', 'Limits XSS damage.'),
 			short(
 				'How do parameterised queries prevent SQL injection?',
@@ -150,9 +209,21 @@ export const BACKEND_TOPICS: CatalogTopic[] = [
 		],
 		resources: { primary: 'twelve-factor', alternative: 'docker-get-started', practice: 'github-actions' },
 		questions: [
-			mcq('Per Twelve-Factor, deploy-specific config lives in…', ['Code', 'Environment variables', 'Committed JSON', 'The DB'], 'b', 'Environments and config', 'Separate config from code.'),
+			mcq(
+				'Per Twelve-Factor, deploy-specific config lives in…',
+				['Code', 'Environment variables', 'Committed JSON', 'The DB'],
+				'b',
+				'Environments and config',
+				'Separate config from code.'
+			),
 			tf('A container image bundles an app with its dependencies.', true, 'Containers', 'Reproducible anywhere.'),
-			short('What should CI check before merge?', 'Install, lint and type checks, tests and a successful build.', ['test', 'lint|type', 'build'], 'CI pipelines', 'Catch regressions automatically.')
+			short(
+				'What should CI check before merge?',
+				'Install, lint and type checks, tests and a successful build.',
+				['test', 'lint|type', 'build'],
+				'CI pipelines',
+				'Catch regressions automatically.'
+			)
 		]
 	},
 	{
@@ -165,10 +236,18 @@ export const BACKEND_TOPICS: CatalogTopic[] = [
 		skills: ['system design', 'architecture'],
 		concepts: ['Scalability', 'Caching', 'Load balancing', 'Database scaling', 'Queues and async work', 'Trade-offs'],
 		prerequisites: ['data-modeling', 'deployment-devops'],
-		practice: [{ title: 'URL shortener', prompt: 'Design for 1k writes/s and 50k reads/s; find the bottleneck and use caching.' }],
+		practice: [
+			{ title: 'URL shortener', prompt: 'Design for 1k writes/s and 50k reads/s; find the bottleneck and use caching.' }
+		],
 		resources: { primary: 'system-design-primer', alternative: 'ddia-book' },
 		questions: [
-			mcq('Main risk of caching?', ['Slower reads', 'Stale data', 'More DB load', 'Latency'], 'b', 'Caching', 'Invalidation is hard.'),
+			mcq(
+				'Main risk of caching?',
+				['Slower reads', 'Stale data', 'More DB load', 'Latency'],
+				'b',
+				'Caching',
+				'Invalidation is hard.'
+			),
 			tf('Queues absorb bursts via async processing.', true, 'Queues and async work', 'Workers drain at a steady rate.'),
 			short(
 				'Horizontal vs vertical scaling?',

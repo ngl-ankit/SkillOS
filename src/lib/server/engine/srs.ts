@@ -80,12 +80,15 @@ export function isDue(nextReviewAt: Date | string | null | undefined, now: Date 
 }
 
 /** Priority used to order the revision queue: overdue + low mastery first. */
-export function revisionPriority(input: {
-	nextReviewAt: Date | string | null;
-	mastery: number;
-	reviewCount: number;
-	difficulty: number;
-}, now: Date = new Date()): number {
+export function revisionPriority(
+	input: {
+		nextReviewAt: Date | string | null;
+		mastery: number;
+		reviewCount: number;
+		difficulty: number;
+	},
+	now: Date = new Date()
+): number {
 	const due = input.nextReviewAt ? (now.getTime() - new Date(input.nextReviewAt).getTime()) / 86_400_000 : 0;
 	const overdueDays = Math.max(0, due);
 	const masteryGap = 100 - clamp(input.mastery, 0, 100);
@@ -95,7 +98,10 @@ export function revisionPriority(input: {
 }
 
 /** Retention estimate used for weak-area ranking and the dashboard. */
-export function retention(input: { mastery: number; reviewCount: number; lastReviewedAt: Date | string | null }, now: Date = new Date()): number {
+export function retention(
+	input: { mastery: number; reviewCount: number; lastReviewedAt: Date | string | null },
+	now: Date = new Date()
+): number {
 	const base = clamp(input.mastery, 0, 100);
 	if (!input.lastReviewedAt) return base;
 	const days = Math.max(0, (now.getTime() - new Date(input.lastReviewedAt).getTime()) / 86_400_000);

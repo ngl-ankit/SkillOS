@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto';
 import { and, desc, eq, sql } from 'drizzle-orm';
+import { AppError } from '$server/errors';
+import type { Context } from '$server/trpc/init';
 import { db } from '../db';
 import { aiCache, aiConversations, aiMessages } from '../db/schema';
-import type { Context } from '$server/trpc/init';
-import { AppError } from '$server/errors';
-import { generate, parseJson, type Usage } from './client';
 import { readCache, writeCache } from '../services/ai-planner';
+import { generate, parseJson, type Usage } from './client';
 
 /** Shared AI usage gate: per-user fixed-window limits stored in Postgres. */
 type Bucket = { limit: number; windowSeconds: number; prefix: string };
@@ -25,7 +25,8 @@ export async function assertWithinLimit(ctx: Context, bucket: Bucket): Promise<v
 	const now = Date.now();
 
 	const memoryHits = (memoryStore.get(key) ?? []).filter((t) => now - t < bucket.windowSeconds * 1000);
-	if (memoryHits.length >= bucket.limit) throw new AppError('TOO_MANY_REQUESTS', 'Slow down a little — try again in a few minutes.');
+	if (memoryHits.length >= bucket.limit)
+		throw new AppError('TOO_MANY_REQUESTS', 'Slow down a little — try again in a few minutes.');
 	memoryHits.push(now);
 	memoryStore.set(key, memoryHits);
 
@@ -118,7 +119,10 @@ export async function conversationMessages(conversationId: string, limit = 60) {
 		.limit(limit);
 }
 
-export async function createConversation(userId: string, input: { title: string; topicId?: string | null; projectId?: string | null }) {
+export async function createConversation(
+	userId: string,
+	input: { title: string; topicId?: string | null; projectId?: string | null }
+) {
 	const [row] = await db
 		.insert(aiConversations)
 		.values({
@@ -132,11 +136,8 @@ export async function createConversation(userId: string, input: { title: string;
 }
 
 export async function cacheStats(userId: string) {
-	const [row] = await db
-		.select({ total: sql<number>`count(*)::int` })
-		.from(aiCache)
-		.where(eq(aiCache.userId, userId));
+	const [row] = await db.select({ total: sql<number>`count(*)::int` }).from(aiCache).where(eq(aiCache.userId, userId));
 	return { entries: row?.total ?? 0 };
 }
 
-export { db, eq, and };
+export { and, db, eq };

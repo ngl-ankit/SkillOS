@@ -108,7 +108,14 @@ export const projectsRouter = ctx.router({
 
 	/** Toggles a milestone; milestones must be completed in order. */
 	setMilestone: ctx.protectedProcedure
-		.input(z.object({ projectId: z.string().uuid(), index: z.number().int().min(0).max(50), done: z.boolean(), minutes: z.number().int().min(0).max(600).default(0) }))
+		.input(
+			z.object({
+				projectId: z.string().uuid(),
+				index: z.number().int().min(0).max(50),
+				done: z.boolean(),
+				minutes: z.number().int().min(0).max(600).default(0)
+			})
+		)
 		.mutation(async ({ ctx: c, input }) => {
 			const [project] = await db
 				.select()
@@ -129,7 +136,7 @@ export const projectsRouter = ctx.router({
 					summary: `${project.title}: ${project.milestones[input.index].title}`
 				});
 			}
-			return { progress: result, nextMilestone: project.milestones[(result?.completedMilestones.length ?? 0)] ?? null };
+			return { progress: result, nextMilestone: project.milestones[result?.completedMilestones.length ?? 0] ?? null };
 		}),
 
 	/** Records repository link and a written reflection. */
@@ -175,7 +182,13 @@ export const projectsRouter = ctx.router({
 		}),
 
 	addNote: ctx.protectedProcedure
-		.input(z.object({ projectId: z.string().uuid(), title: z.string().trim().max(160).default('Project note'), body: z.string().trim().min(1).max(10000) }))
+		.input(
+			z.object({
+				projectId: z.string().uuid(),
+				title: z.string().trim().max(160).default('Project note'),
+				body: z.string().trim().min(1).max(10000)
+			})
+		)
 		.mutation(async ({ ctx: c, input }) => {
 			const [project] = await db
 				.select({ id: projects.id })
@@ -193,12 +206,19 @@ export const projectsRouter = ctx.router({
 	/** Project progress summary for the dashboard. */
 	summary: ctx.protectedProcedure.query(async ({ ctx: c }) => {
 		const bundle = await getRoadmapBundle(c.user.id);
-		if (!bundle) return { total: 0, inProgress: 0, completed: 0, next: null as null | { id: string; title: string; nextMilestone: string | null } };
+		if (!bundle)
+			return {
+				total: 0,
+				inProgress: 0,
+				completed: 0,
+				next: null as null | { id: string; title: string; nextMilestone: string | null }
+			};
 		const ids = bundle.projectList.map((p) => p.id);
 		const states = ids.length > 0 ? await db.select().from(projectProgress).where(inArray(projectProgress.projectId, ids)) : [];
 		const byId = new Map(states.map((s) => [s.projectId, s]));
 		const candidates = bundle.projectList.filter((p) => (byId.get(p.id)?.status ?? 'not_started') !== 'completed');
-		const chosen = candidates.sort((a, b) => (byId.get(a.id) ? 0 : 1) - (byId.get(b.id) ? 0 : 1) || a.difficulty - b.difficulty)[0] ?? null;
+		const chosen =
+			candidates.sort((a, b) => (byId.get(a.id) ? 0 : 1) - (byId.get(b.id) ? 0 : 1) || a.difficulty - b.difficulty)[0] ?? null;
 		if (!chosen) return { total: bundle.projectList.length, inProgress: 0, completed: bundle.projectList.length, next: null };
 		const done = byId.get(chosen.id)?.completedMilestones.length ?? 0;
 		return {
@@ -212,14 +232,24 @@ export const projectsRouter = ctx.router({
 	/** Cross-project time log, useful for the progress surface. */
 	time: ctx.protectedProcedure.query(async ({ ctx: c }) => {
 		const rows = await db
-			.select({ projectId: sql<string>`project_id`, minutes: sql<number>`sum(minutes)::int`, sessions: sql<number>`count(*)::int` })
+			.select({
+				projectId: sql<string>`project_id`,
+				minutes: sql<number>`sum(minutes)::int`,
+				sessions: sql<number>`count(*)::int`
+			})
 			.from(sql`learning_sessions`)
 			.where(sql`user_id = ${c.user.id} and kind = 'project' and project_id is not null`)
 			.groupBy(sql`project_id`);
 		const bundle = await getRoadmapBundle(c.user.id);
 		const titleById = new Map((bundle?.projectList ?? []).map((p) => [p.id, p.title]));
 		return rows
-			.map((r) => ({ projectId: r.projectId, title: titleById.get(r.projectId) ?? 'Project', minutes: r.minutes, sessions: r.sessions, human: humanMinutes(r.minutes) }))
+			.map((r) => ({
+				projectId: r.projectId,
+				title: titleById.get(r.projectId) ?? 'Project',
+				minutes: r.minutes,
+				sessions: r.sessions,
+				human: humanMinutes(r.minutes)
+			}))
 			.filter((r) => titleById.has(r.projectId));
 	})
 });

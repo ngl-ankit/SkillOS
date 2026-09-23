@@ -32,7 +32,10 @@ function normalise(input: string): string {
 }
 
 /** Free-text questions are graded against the reference answer plus keyword evidence. */
-function gradeFreeText(question: { answer: string; keywords?: string[] }, given: string): { correct: boolean; score: number; feedback: string } {
+function gradeFreeText(
+	question: { answer: string; keywords?: string[] },
+	given: string
+): { correct: boolean; score: number; feedback: string } {
 	const response = normalise(given);
 	if (response.length === 0) return { correct: false, score: 0, feedback: 'No answer was given.' };
 
@@ -79,7 +82,17 @@ function gradeFreeText(question: { answer: string; keywords?: string[] }, given:
  * offline-safe: no AI call is required for the score itself.
  */
 export function gradeAnswers(
-	questions: { id: string; position: number; type: CatalogQuestion['type']; prompt: string; concept: string; answer: string; keywords: string[] | null; explanation: string; points: number }[],
+	questions: {
+		id: string;
+		position: number;
+		type: CatalogQuestion['type'];
+		prompt: string;
+		concept: string;
+		answer: string;
+		keywords: string[] | null;
+		explanation: string;
+		points: number;
+	}[],
 	answers: Record<string, string>
 ): GradedAttempt {
 	const results: GradedQuestion[] = [];
@@ -99,11 +112,7 @@ export function gradeAnswers(
 			const actual = given.trim().toLowerCase();
 			correct = expected === actual;
 			score = correct ? 100 : 0;
-			feedback = correct
-				? 'Correct.'
-				: actual.length === 0
-					? 'Not answered.'
-					: `Incorrect. The expected answer is shown below.`;
+			feedback = correct ? 'Correct.' : actual.length === 0 ? 'Not answered.' : `Incorrect. The expected answer is shown below.`;
 		} else {
 			const graded = gradeFreeText({ answer: question.answer, keywords: question.keywords ?? [] }, given);
 			correct = graded.correct;

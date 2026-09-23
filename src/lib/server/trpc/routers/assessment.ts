@@ -1,17 +1,24 @@
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { clamp, humanMinutes, pct, todayISO } from '$lib/utils';
+import { RESOURCES, TOPIC_BY_KEY } from '$server/catalog';
 import { db } from '$server/db';
-import { assessmentAttempts, assessmentQuestions, assessments, checkIns, learningSessions, notes, projects, topics } from '$server/db/schema';
-import { RESOURCES } from '$server/catalog';
-import { AppError } from '$server/errors';
-import { TOPIC_BY_KEY } from '$server/catalog';
-import { getRoadmapBundle, requireTopic } from '$server/services/access';
-import { applyProgress, logSession, recordReview } from '$server/services/progress';
+import {
+	assessmentAttempts,
+	assessmentQuestions,
+	assessments,
+	checkIns,
+	learningSessions,
+	notes,
+	projects,
+	topics
+} from '$server/db/schema';
 import { gradeAnswers } from '$server/engine/grader';
 import { gradeFromScore, retention, schedule } from '$server/engine/srs';
+import { AppError } from '$server/errors';
+import { getRoadmapBundle, requireTopic } from '$server/services/access';
 import { rememberFact } from '$server/services/learner-context';
-import { weakTopics } from '$server/services/progress';
+import { applyProgress, logSession, recordReview, weakTopics } from '$server/services/progress';
 import { ctx } from '../init';
 
 const daySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -51,9 +58,9 @@ export async function ensureTopicAssessment(userId: string, topicId: string) {
 			type: q.type,
 			prompt: q.prompt,
 			code: q.code ?? null,
-			options: q.options ? q.options.map((label, i) => ({ key: String.fromCharCode(97 + i), label })) : null,
+			options: q.options ? q.options.map((label, i) => ({ key: String.fromCharCode(97 + i), label })) : [],
 			answer: q.answer,
-			keywords: q.keywords ?? null,
+			keywords: q.keywords ?? [],
 			explanation: q.explanation,
 			concept: q.concept,
 			points: q.type === 'short' || q.type === 'code' ? 2 : 1
@@ -83,7 +90,12 @@ export const assessmentRouter = ctx.router({
 				.where(eq(assessmentQuestions.assessmentId, assessment.id))
 				.orderBy(assessmentQuestions.position),
 			db
-				.select({ id: assessmentAttempts.id, score: assessmentAttempts.score, passed: assessmentAttempts.passed, at: assessmentAttempts.createdAt })
+				.select({
+					id: assessmentAttempts.id,
+					score: assessmentAttempts.score,
+					passed: assessmentAttempts.passed,
+					at: assessmentAttempts.createdAt
+				})
 				.from(assessmentAttempts)
 				.where(and(eq(assessmentAttempts.userId, c.user.id), eq(assessmentAttempts.assessmentId, assessment.id)))
 				.orderBy(desc(assessmentAttempts.createdAt))
@@ -92,7 +104,12 @@ export const assessmentRouter = ctx.router({
 		]);
 
 		return {
-			assessment: { id: assessment.id, title: assessment.title, description: assessment.description, passScore: assessment.passScore },
+			assessment: {
+				id: assessment.id,
+				title: assessment.title,
+				description: assessment.description,
+				passScore: assessment.passScore
+			},
 			topicTitle: topic[0]?.title ?? 'Topic',
 			questions,
 			attempts: previous,
@@ -100,25 +117,27 @@ export const assessmentRouter = ctx.router({
 		};
 	}),
 
-	history: ctx.protectedProcedure.input(z.object({ limit: z.number().int().min(1).max(50).default(20) })).query(async ({ ctx: c, input }) =>
-		db
-			.select({
-				id: assessmentAttempts.id,
-				score: assessmentAttempts.score,
-				passed: assessmentAttempts.passed,
-				summary: assessmentAttempts.summary,
-				createdAt: assessmentAttempts.createdAt,
-				title: assessments.title,
-				topicId: assessments.topicId,
-				topicTitle: topics.title
-			})
-			.from(assessmentAttempts)
-			.innerJoin(assessments, eq(assessments.id, assessmentAttempts.assessmentId))
-			.leftJoin(topics, eq(topics.id, assessments.topicId))
-			.where(eq(assessmentAttempts.userId, c.user.id))
-			.orderBy(desc(assessmentAttempts.createdAt))
-			.limit(input.limit)
-	),
+	history: ctx.protectedProcedure
+		.input(z.object({ limit: z.number().int().min(1).max(50).default(20) }))
+		.query(async ({ ctx: c, input }) =>
+			db
+				.select({
+					id: assessmentAttempts.id,
+					score: assessmentAttempts.score,
+					passed: assessmentAttempts.passed,
+					summary: assessmentAttempts.summary,
+					createdAt: assessmentAttempts.createdAt,
+					title: assessments.title,
+					topicId: assessments.topicId,
+					topicTitle: topics.title
+				})
+				.from(assessmentAttempts)
+				.innerJoin(assessments, eq(assessments.id, assessmentAttempts.assessmentId))
+				.leftJoin(topics, eq(topics.id, assessments.topicId))
+				.where(eq(assessmentAttempts.userId, c.user.id))
+				.orderBy(desc(assessmentAttempts.createdAt))
+				.limit(input.limit)
+		),
 
 	attempt: ctx.protectedProcedure.input(z.object({ attemptId: z.string().uuid() })).query(async ({ ctx: c, input }) => {
 		const [row] = await db
@@ -177,15 +196,13 @@ export const assessmentRouter = ctx.router({
 					userId: c.user.id,
 					assessmentId: assessment.id,
 					answers: input.answers,
-					results: {
-						results: graded.results.map((r) => ({
-							questionId: r.questionId,
-							correct: r.correct,
-							score: r.score,
-							feedback: r.feedback,
-							concept: r.concept
-						}))
-					},
+					results: graded.results.map((r) => ({
+						questionId: r.questionId,
+						correct: r.correct,
+						score: r.score,
+						feedback: r.feedback,
+						concept: r.concept
+					})),
 					score: graded.score,
 					passed,
 					summary,
@@ -201,7 +218,10 @@ export const assessmentRouter = ctx.router({
 					progressPct: passed ? 100 : undefined,
 					status: passed ? 'completed' : 'in_progress'
 				});
-				const outcome = schedule({ easeFactor: current.easeFactor, intervalDays: current.intervalDays, reviewCount: current.reviewCount }, grade);
+				const outcome = schedule(
+					{ easeFactor: current.easeFactor, intervalDays: current.intervalDays, reviewCount: current.reviewCount },
+					grade
+				);
 				await applyProgress(c.user.id, {
 					topicId: assessment.topicId,
 					mastery: graded.score,
@@ -306,7 +326,12 @@ export const assessmentRouter = ctx.router({
 				mastery: t.mastery,
 				difficulty: t.difficulty,
 				status: t.status,
-				reason: t.mastery < 60 ? `Retention is ${t.mastery}%` : t.status === 'completed' ? 'Confirm it stuck' : 'Check your understanding',
+				reason:
+					t.mastery < 60
+						? `Retention is ${t.mastery}%`
+						: t.status === 'completed'
+							? 'Confirm it stuck'
+							: 'Check your understanding',
 				score: 100 - t.mastery + t.difficulty * 4
 			}))
 			.sort((a, b) => b.score - a.score)
@@ -316,75 +341,114 @@ export const assessmentRouter = ctx.router({
 
 export const revisionRouter = ctx.router({
 	/** The spaced-repetition queue, ordered by urgency. */
-	queue: ctx.protectedProcedure.input(z.object({ limit: z.number().int().min(1).max(60).default(20) })).query(async ({ ctx: c, input }) => {
-		const bundle = await getRoadmapBundle(c.user.id);
-		if (!bundle) return { due: [], soon: [], recentlyLearned: [], cooling: [], summary: { dueCount: 0, avgMastery: 0, reviewsThisWeek: 0 } };
+	queue: ctx.protectedProcedure
+		.input(z.object({ limit: z.number().int().min(1).max(60).default(20) }))
+		.query(async ({ ctx: c, input }) => {
+			const bundle = await getRoadmapBundle(c.user.id);
+			if (!bundle)
+				return {
+					due: [],
+					soon: [],
+					recentlyLearned: [],
+					cooling: [],
+					summary: { dueCount: 0, avgMastery: 0, reviewsThisWeek: 0 }
+				};
 
-		const now = Date.now();
-		const scored = bundle.topics
-			.filter((t) => t.status !== 'not_started' && t.available)
-			.map((t) => {
-				const overdueDays = t.nextReviewAt ? Math.round((now - new Date(t.nextReviewAt).getTime()) / 86_400_000) : -1;
-				return { ...t, overdueDays };
-			});
+			const now = Date.now();
+			const scored = bundle.topics
+				.filter((t) => t.status !== 'not_started' && t.available)
+				.map((t) => {
+					const overdueDays = t.nextReviewAt ? Math.round((now - new Date(t.nextReviewAt).getTime()) / 86_400_000) : -1;
+					return { ...t, overdueDays };
+				});
 
-		const due = scored
-			.filter((t) => t.overdueDays >= 0 && (t.status !== 'not_started' || t.mastery > 0))
-			.sort((a, b) => b.overdueDays - a.overdueDays || a.mastery - b.mastery)
-			.slice(0, input.limit);
+			const due = scored
+				.filter((t) => t.overdueDays >= 0 && (t.status !== 'not_started' || t.mastery > 0))
+				.sort((a, b) => b.overdueDays - a.overdueDays || a.mastery - b.mastery)
+				.slice(0, input.limit);
 
-		const soon = scored
-			.filter((t) => t.overdueDays < 0 && t.overdueDays >= -3)
-			.sort((a, b) => b.overdueDays - a.overdueDays)
-			.slice(0, 8);
+			const soon = scored
+				.filter((t) => t.overdueDays < 0 && t.overdueDays >= -3)
+				.sort((a, b) => b.overdueDays - a.overdueDays)
+				.slice(0, 8);
 
-		const recentlyLearned = bundle.topics
-			.filter((t) => t.status !== 'not_started' && t.lastReviewedAt)
-			.sort((a, b) => (b.lastReviewedAt?.getTime() ?? 0) - (a.lastReviewedAt?.getTime() ?? 0))
-			.slice(0, 6);
+			const recentlyLearned = bundle.topics
+				.filter((t) => t.status !== 'not_started' && t.lastReviewedAt)
+				.sort((a, b) => (b.lastReviewedAt?.getTime() ?? 0) - (a.lastReviewedAt?.getTime() ?? 0))
+				.slice(0, 6);
 
-		// Topics mastered once but not revisited for a while — the ones that quietly decay.
-		const cooling = bundle.topics
-			.filter((t) => t.status === 'completed' && t.mastery < 80 && (!t.lastReviewedAt || (now - t.lastReviewedAt.getTime()) / 86_400_000 > 10))
-			.sort((a, b) => a.mastery - b.mastery)
-			.slice(0, 6);
+			// Topics mastered once but not revisited for a while — the ones that quietly decay.
+			const cooling = bundle.topics
+				.filter(
+					(t) =>
+						t.status === 'completed' &&
+						t.mastery < 80 &&
+						(!t.lastReviewedAt || (now - t.lastReviewedAt.getTime()) / 86_400_000 > 10)
+				)
+				.sort((a, b) => a.mastery - b.mastery)
+				.slice(0, 6);
 
-		const weekStart = new Date(now - 7 * 86_400_000);
-		const [reviewsThisWeek] = await db
-			.select({ total: sql<number>`count(*)::int` })
-			.from(learningSessions)
-			.where(and(eq(learningSessions.userId, c.user.id), eq(learningSessions.kind, 'revise'), sql`${learningSessions.createdAt} >= ${weekStart}`));
+			const weekStart = new Date(now - 7 * 86_400_000);
+			const [reviewsThisWeek] = await db
+				.select({ total: sql<number>`count(*)::int` })
+				.from(learningSessions)
+				.where(
+					and(
+						eq(learningSessions.userId, c.user.id),
+						eq(learningSessions.kind, 'revise'),
+						sql`${learningSessions.createdAt} >= ${weekStart}`
+					)
+				);
 
-		const avgMastery =
-			bundle.topics.filter((t) => t.status !== 'not_started').length > 0
-				? Math.round(bundle.topics.filter((t) => t.status !== 'not_started').reduce((s, t) => s + t.mastery, 0) / bundle.topics.filter((t) => t.status !== 'not_started').length)
-				: 0;
+			const avgMastery =
+				bundle.topics.filter((t) => t.status !== 'not_started').length > 0
+					? Math.round(
+							bundle.topics.filter((t) => t.status !== 'not_started').reduce((s, t) => s + t.mastery, 0) /
+								bundle.topics.filter((t) => t.status !== 'not_started').length
+						)
+					: 0;
 
-		return {
-			due: due.map((t) => ({
-				topicId: t.topicId,
-				title: t.title,
-				domain: t.domain,
-				mastery: t.mastery,
-				difficulty: t.difficulty,
-				overdueDays: t.overdueDays,
-				nextReviewAt: t.nextReviewAt,
-				lastReviewedAt: t.lastReviewedAt,
-				reviewCount: t.reviewCount,
-				intervalDays: t.intervalDays,
-				estimatedMinutes: Math.max(5, Math.round(t.estimatedMinutes * 0.25))
-			})),
-			soon: soon.map((t) => ({ topicId: t.topicId, title: t.title, mastery: t.mastery, nextReviewAt: t.nextReviewAt, intervalDays: t.intervalDays })),
-			recentlyLearned: recentlyLearned.map((t) => ({ topicId: t.topicId, title: t.title, mastery: t.mastery, lastReviewedAt: t.lastReviewedAt })),
-			cooling: cooling.map((t) => ({ topicId: t.topicId, title: t.title, mastery: t.mastery, lastReviewedAt: t.lastReviewedAt })),
-			summary: {
-				dueCount: due.length,
-				avgMastery,
-				reviewsThisWeek: reviewsThisWeek?.total ?? 0,
-				totalScheduled: scored.filter((t) => t.nextReviewAt).length
-			}
-		};
-	}),
+			return {
+				due: due.map((t) => ({
+					topicId: t.topicId,
+					title: t.title,
+					domain: t.domain,
+					mastery: t.mastery,
+					difficulty: t.difficulty,
+					overdueDays: t.overdueDays,
+					nextReviewAt: t.nextReviewAt,
+					lastReviewedAt: t.lastReviewedAt,
+					reviewCount: t.reviewCount,
+					intervalDays: t.intervalDays,
+					estimatedMinutes: Math.max(5, Math.round(t.estimatedMinutes * 0.25))
+				})),
+				soon: soon.map((t) => ({
+					topicId: t.topicId,
+					title: t.title,
+					mastery: t.mastery,
+					nextReviewAt: t.nextReviewAt,
+					intervalDays: t.intervalDays
+				})),
+				recentlyLearned: recentlyLearned.map((t) => ({
+					topicId: t.topicId,
+					title: t.title,
+					mastery: t.mastery,
+					lastReviewedAt: t.lastReviewedAt
+				})),
+				cooling: cooling.map((t) => ({
+					topicId: t.topicId,
+					title: t.title,
+					mastery: t.mastery,
+					lastReviewedAt: t.lastReviewedAt
+				})),
+				summary: {
+					dueCount: due.length,
+					avgMastery,
+					reviewsThisWeek: reviewsThisWeek?.total ?? 0,
+					totalScheduled: scored.filter((t) => t.nextReviewAt).length
+				}
+			};
+		}),
 
 	/** Records a completed revision pass and advances the schedule. */
 	complete: ctx.protectedProcedure
@@ -396,7 +460,14 @@ export const revisionRouter = ctx.router({
 			})
 		)
 		.mutation(async ({ ctx: c, input }) => {
-			await logSession({ userId: c.user.id, topicId: input.topicId, kind: 'revise', minutes: input.minutes, day: todayISO(), summary: `Revision (rated ${input.rating}/5)` });
+			await logSession({
+				userId: c.user.id,
+				topicId: input.topicId,
+				kind: 'revise',
+				minutes: input.minutes,
+				day: todayISO(),
+				summary: `Revision (rated ${input.rating}/5)`
+			});
 			const updated = await recordReview(c.user.id, input.topicId, input.rating);
 			return {
 				nextReviewAt: updated.nextReviewAt,
@@ -410,54 +481,74 @@ export const revisionRouter = ctx.router({
 		}),
 
 	/** A quick mixed quiz drawn from the learner's data, no AI required. */
-	quickQuiz: ctx.protectedProcedure.input(z.object({ count: z.number().int().min(3).max(20).default(6) })).query(async ({ ctx: c, input }) => {
-		const bundle = await getRoadmapBundle(c.user.id);
-		if (!bundle) return { items: [], topicIds: [] };
-		const candidates = bundle.topics
-			.filter((t) => t.status !== 'not_started' && t.available && t.catalogKey)
-			.sort((a, b) => a.mastery - b.mastery)
-			.slice(0, 8);
-		const topicRows = await db
-			.select()
-			.from(topics)
-			.where(
-				and(
-					eq(topics.userId, c.user.id),
-					candidates.length > 0 ? inArray(topics.id, candidates.map((t) => t.topicId)) : sql`false`
-				)
-			);
+	quickQuiz: ctx.protectedProcedure
+		.input(z.object({ count: z.number().int().min(3).max(20).default(6) }))
+		.query(async ({ ctx: c, input }) => {
+			const bundle = await getRoadmapBundle(c.user.id);
+			if (!bundle) return { items: [], topicIds: [] };
+			const candidates = bundle.topics
+				.filter((t) => t.status !== 'not_started' && t.available)
+				.sort((a, b) => a.mastery - b.mastery)
+				.slice(0, 8);
+			const topicRows = await db
+				.select()
+				.from(topics)
+				.where(
+					and(
+						eq(topics.userId, c.user.id),
+						candidates.length > 0
+							? inArray(
+									topics.id,
+									candidates.map((t) => t.topicId)
+								)
+							: sql`false`
+					)
+				);
 
-		const items: { topicId: string; topicTitle: string; concept: string; prompt: string; options: { key: string; label: string }[]; answer: string; explanation: string; difficulty: number }[] = [];
-		for (const topic of topicRows) {
-			const catalog = topic.catalogKey ? TOPIC_BY_KEY.get(topic.catalogKey) : undefined;
-			if (!catalog) continue;
-			for (const question of catalog.questions) {
-				if (question.type !== 'mcq') continue;
-				items.push({
-					topicId: topic.id,
-					topicTitle: topic.title,
-					concept: question.concept,
-					prompt: question.prompt,
-					options: (question.options ?? []).map((label, i) => ({ key: String.fromCharCode(97 + i), label })),
-					answer: question.answer,
-					explanation: question.explanation,
-					difficulty: topic.difficulty
-				});
+			const items: {
+				topicId: string;
+				topicTitle: string;
+				concept: string;
+				prompt: string;
+				options: { key: string; label: string }[];
+				answer: string;
+				explanation: string;
+				difficulty: number;
+			}[] = [];
+			for (const topic of topicRows) {
+				const catalog = topic.catalogKey ? TOPIC_BY_KEY.get(topic.catalogKey) : undefined;
+				if (!catalog) continue;
+				for (const question of catalog.questions) {
+					if (question.type !== 'mcq') continue;
+					items.push({
+						topicId: topic.id,
+						topicTitle: topic.title,
+						concept: question.concept,
+						prompt: question.prompt,
+						options: (question.options ?? []).map((label, i) => ({ key: String.fromCharCode(97 + i), label })),
+						answer: question.answer,
+						explanation: question.explanation,
+						difficulty: topic.difficulty
+					});
+					if (items.length >= input.count * 3) break;
+				}
 				if (items.length >= input.count * 3) break;
 			}
-			if (items.length >= input.count * 3) break;
-		}
 
-		// Deterministic shuffle keyed to the day so a retake is not identical within a day.
-		const seed = todayISO().split('-').join('').split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
-		const shuffled = items
-			.map((item, index) => ({ item, k: (index * 7919 + seed) % 1009 }))
-			.sort((a, b) => a.k - b.k)
-			.map((x) => x.item)
-			.slice(0, input.count);
+			// Deterministic shuffle keyed to the day so a retake is not identical within a day.
+			const seed = todayISO()
+				.split('-')
+				.join('')
+				.split('')
+				.reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+			const shuffled = items
+				.map((item, index) => ({ item, k: (index * 7919 + seed) % 1009 }))
+				.sort((a, b) => a.k - b.k)
+				.map((x) => x.item)
+				.slice(0, input.count);
 
-		return { items: shuffled, topicIds: [...new Set(shuffled.map((i) => i.topicId))] };
-	}),
+			return { items: shuffled, topicIds: [...new Set(shuffled.map((i) => i.topicId))] };
+		}),
 
 	/** Topics the learner should revisit, with retention estimates attached. */
 	weakAreas: ctx.protectedProcedure.query(async ({ ctx: c }) => {
@@ -470,7 +561,9 @@ export const revisionRouter = ctx.router({
 				...w,
 				estimatedMinutes: snap ? Math.max(5, Math.round(snap.estimatedMinutes * 0.3)) : 10,
 				nextReviewAt: snap?.nextReviewAt ?? null,
-				retention: snap ? retention({ mastery: snap.mastery, reviewCount: snap.reviewCount, lastReviewedAt: snap.lastReviewedAt }) : w.mastery
+				retention: snap
+					? retention({ mastery: snap.mastery, reviewCount: snap.reviewCount, lastReviewedAt: snap.lastReviewedAt })
+					: w.mastery
 			};
 		});
 	})

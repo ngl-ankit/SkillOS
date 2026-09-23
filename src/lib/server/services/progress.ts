@@ -11,12 +11,13 @@ import {
 	notifications,
 	projectProgress,
 	projects,
+	roadmapPhases,
 	topicProgress,
 	topics
 } from '../db/schema';
 import { schedule } from '../engine/srs';
-import { ensureTopicProgress, getPreferences, getRoadmapBundle, type Goal } from './access';
 import type { Profile } from './access';
+import { ensureTopicProgress, type Goal, getPreferences, getRoadmapBundle } from './access';
 
 export type ProgressUpdate = {
 	topicId: string;
@@ -92,7 +93,10 @@ export async function recordReview(userId: string, topicId: string, grade: numbe
 		{ easeFactor: current.easeFactor, intervalDays: current.intervalDays, reviewCount: current.reviewCount },
 		grade
 	);
-	const mastery = score !== undefined ? clamp(Math.round(score), 0, 100) : clamp(current.mastery + (grade >= 4 ? 6 : grade <= 2 ? -8 : 0), 0, 100);
+	const mastery =
+		score !== undefined
+			? clamp(Math.round(score), 0, 100)
+			: clamp(current.mastery + (grade >= 4 ? 6 : grade <= 2 ? -8 : 0), 0, 100);
 	return applyProgress(userId, {
 		topicId,
 		mastery: mastery,
@@ -141,7 +145,8 @@ export async function roadmapProgress(userId: string, goalId?: string | null): P
 	const inProgress = snapshots.filter((t) => t.status === 'in_progress').length;
 	const locked = snapshots.filter((t) => !t.available && t.status === 'not_started').length;
 	const available = snapshots.filter((t) => t.available && t.status === 'not_started').length;
-	const current = snapshots.find((t) => t.status === 'in_progress') ?? snapshots.find((t) => t.available && t.status === 'not_started') ?? null;
+	const current =
+		snapshots.find((t) => t.status === 'in_progress') ?? snapshots.find((t) => t.available && t.status === 'not_started') ?? null;
 
 	const phaseProgress: PhaseProgress[] = phases.map((phase) => {
 		const inPhase = snapshots.filter((t) => t.phaseTitle === phase.title);
@@ -161,9 +166,7 @@ export async function roadmapProgress(userId: string, goalId?: string | null): P
 	// Reaching a milestone is derived, then persisted the first time it happens.
 	for (const phase of phaseProgress) {
 		if (phase.total > 0 && phase.percent === 100 && !phase.milestoneReachedAt) {
-			await db.update(roadmapPhaseTable())
-				.set({ milestoneReachedAt: new Date() })
-				.where(eq(roadmapPhaseIdColumn(), phase.id));
+			await db.update(roadmapPhases).set({ milestoneReachedAt: new Date() }).where(eq(roadmapPhases.id, phase.id));
 			phase.milestoneReachedAt = new Date();
 		}
 	}
@@ -185,14 +188,6 @@ export async function roadmapProgress(userId: string, goalId?: string | null): P
 		projectTotal,
 		projectDone
 	};
-}
-
-/* Local accessors keep the milestone write above readable without extra imports. */
-function roadmapPhaseTable() {
-	return { milestoneReachedAt: null } as unknown as Parameters<typeof db.update>[0];
-}
-function roadmapPhaseIdColumn() {
-	return null as unknown as Parameters<ReturnType<typeof db.update>['set']>[0];
 }
 
 export type StreakInfo = { current: number; longest: number; activeDays: string[] };
@@ -227,7 +222,14 @@ export async function streak(userId: string, today: string): Promise<StreakInfo>
 	return { current, longest, activeDays: rows.slice(0, 30).map((r) => r.day) };
 }
 
-export type WeakTopic = { topicId: string; title: string; mastery: number; domain: string; difficulty: number; reasons: string[] };
+export type WeakTopic = {
+	topicId: string;
+	title: string;
+	mastery: number;
+	domain: string;
+	difficulty: number;
+	reasons: string[];
+};
 
 /** Topics that most need attention: low retention, failed attempts, or flagged in check-ins. */
 export async function weakTopics(userId: string, limit = 6): Promise<WeakTopic[]> {
@@ -269,10 +271,21 @@ export async function weakTopics(userId: string, limit = 6): Promise<WeakTopic[]
 			if (score !== undefined && score < 80) reasons.push(`Assessment scored ${score}%`);
 			if (topic.mastery < 60) reasons.push(`Retention at ${topic.mastery}%`);
 			if (topic.nextReviewAt && new Date(topic.nextReviewAt).getTime() <= Date.now()) reasons.push('Review overdue');
-			if (topic.status === 'in_progress' && topic.progressPct < 40 && topic.minutesSpent > 20) reasons.push('Stalled part-way through');
+			if (topic.status === 'in_progress' && topic.progressPct < 40 && topic.minutesSpent > 20)
+				reasons.push('Stalled part-way through');
 			if (reasons.length === 0) return null;
-			const score0 = (100 - topic.mastery) + (score !== undefined ? Math.max(0, 80 - score) : 0) + topic.difficulty * 3;
-			return { topic: { topicId: topic.topicId, title: topic.title, mastery: topic.mastery, domain: topic.domain, difficulty: topic.difficulty, reasons }, score: score0 };
+			const score0 = 100 - topic.mastery + (score !== undefined ? Math.max(0, 80 - score) : 0) + topic.difficulty * 3;
+			return {
+				topic: {
+					topicId: topic.topicId,
+					title: topic.title,
+					mastery: topic.mastery,
+					domain: topic.domain,
+					difficulty: topic.difficulty,
+					reasons
+				},
+				score: score0
+			};
 		})
 		.filter((x): x is { topic: WeakTopic; score: number } => x !== null)
 		.sort((a, b) => b.score - a.score)
@@ -305,7 +318,13 @@ export async function revisionQueue(userId: string, today: string): Promise<Revi
 		.filter((t) => (t.status !== 'not_started' || t.mastery > 0) && t.available)
 		.map((t) => {
 			const overdueDays = t.nextReviewAt ? Math.max(0, Math.round((now - new Date(t.nextReviewAt).getTime()) / 86_400_000)) : 0;
-			const state: RevisionItem['state'] = !t.nextReviewAt ? 'fresh' : overdueDays > 0 ? 'due' : overdueDays >= -2 ? 'soon' : 'fresh';
+			const state: RevisionItem['state'] = !t.nextReviewAt
+				? 'fresh'
+				: overdueDays > 0
+					? 'due'
+					: overdueDays >= -2
+						? 'soon'
+						: 'fresh';
 			return {
 				topicId: t.topicId,
 				title: t.title,
@@ -353,7 +372,8 @@ export async function toggleMilestone(userId: string, projectId: string, index: 
 		if (list.includes(i)) contiguous.push(i);
 		else break;
 	}
-	const status = contiguous.length === project.milestones.length ? 'completed' : contiguous.length > 0 ? 'in_progress' : 'not_started';
+	const status =
+		contiguous.length === project.milestones.length ? 'completed' : contiguous.length > 0 ? 'in_progress' : 'not_started';
 
 	if (existing) {
 		const [row] = await db
@@ -371,9 +391,16 @@ export async function toggleMilestone(userId: string, projectId: string, index: 
 	}
 	const [row] = await db
 		.insert(projectProgress)
-		.values({ userId, projectId, completedMilestones: contiguous, status, startedAt: new Date(), completedAt: status === 'completed' ? new Date() : null })
+		.values({
+			userId,
+			projectId,
+			completedMilestones: contiguous,
+			status,
+			startedAt: new Date(),
+			completedAt: status === 'completed' ? new Date() : null
+		})
 		.returning();
 	return row;
 }
 
-export { asc, eq, and, db };
+export { and, asc, db, eq };

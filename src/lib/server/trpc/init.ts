@@ -59,11 +59,15 @@ export function createContextFactory() {
 	return {
 		t,
 		router: t.router,
+		createCallerFactory: t.createCallerFactory,
 		/** Public procedure: never trusts a client-supplied user id. */
 		publicProcedure: t.procedure.use(middleware),
 		/** Protected procedure: identity always comes from the server session. */
 		protectedProcedure: t.procedure.use(middleware).use(requireAuth)
 	};
 }
+
+/** Shared tRPC builder used by every router module. */
+export const ctx = createContextFactory();
 
 export type { TRPCError };

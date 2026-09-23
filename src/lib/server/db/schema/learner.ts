@@ -24,13 +24,17 @@ export const userPreferences = pgTable('user_preferences', {
 	userId: text('user_id')
 		.primaryKey()
 		.references(() => users.id, { onDelete: 'cascade' }),
-	universeMode: text('universe_mode', { enum: ['auto', '3d', '2d'] }).notNull().default('auto'),
+	universeMode: text('universe_mode', { enum: ['auto', '3d', '2d'] })
+		.notNull()
+		.default('auto'),
 	reducedMotion: boolean('reduced_motion').notNull().default(false),
 	reminderHour: smallint('reminder_hour').notNull().default(18),
 	notificationsEnabled: boolean('notifications_enabled').notNull().default(true),
 	/** Percentage applied to daily minutes, adapted from check-ins (50–150). */
 	intensity: integer('intensity_pct').notNull().default(100),
-	mentorAnswerStyle: text('mentor_answer_style', { enum: ['guided', 'direct'] }).notNull().default('guided'),
+	mentorAnswerStyle: text('mentor_answer_style', { enum: ['guided', 'direct'] })
+		.notNull()
+		.default('guided'),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 });
 

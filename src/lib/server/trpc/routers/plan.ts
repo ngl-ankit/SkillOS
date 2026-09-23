@@ -2,13 +2,23 @@ import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { addDaysISO, todayISO } from '$lib/utils';
 import { db } from '$server/db';
-import { assessmentAttempts, assessments, checkIns, dailyPlanItems, dailyPlans, learningSessions, topicProgress, topics, userPreferences } from '$server/db/schema';
-import { AppError } from '$server/errors';
+import {
+	assessmentAttempts,
+	assessments,
+	checkIns,
+	dailyPlanItems,
+	dailyPlans,
+	learningSessions,
+	topicProgress,
+	topics,
+	userPreferences
+} from '$server/db/schema';
 import { gradeFromCheckIn } from '$server/engine/srs';
+import { AppError } from '$server/errors';
 import { ensureTopicProgress, getPreferences, getProfile, getRoadmapBundle } from '$server/services/access';
 import { buildToday, ensureTodayPlan } from '$server/services/dashboard';
-import { applyProgress, logSession, recordReview } from '$server/services/progress';
 import { rememberFact } from '$server/services/learner-context';
+import { applyProgress, logSession, recordReview } from '$server/services/progress';
 import { ctx } from '../init';
 
 const daySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -29,7 +39,11 @@ export async function submitCheckIn(
 	}
 ) {
 	const day = input.day ?? todayISO();
-	const [plan] = await db.select().from(dailyPlans).where(and(eq(dailyPlans.userId, userId), eq(dailyPlans.day, day))).limit(1);
+	const [plan] = await db
+		.select()
+		.from(dailyPlans)
+		.where(and(eq(dailyPlans.userId, userId), eq(dailyPlans.day, day)))
+		.limit(1);
 
 	// Signals derived from the answers, folded into the next plan.
 	const difficultySignal = input.difficulty - 3;
@@ -42,7 +56,10 @@ export async function submitCheckIn(
 	if (difficultySignal >= 1) adaptationParts.push('the material felt hard');
 	if (confidenceSignal <= -1) adaptationParts.push('confidence was low');
 	if (input.blockers.length > 0) adaptationParts.push(`blocked by ${input.blockers.join(', ')}`);
-	const adaptation = adaptationParts.length > 0 ? `Adjusted the next plan because ${adaptationParts.join('; ')}.` : 'No change needed — the plan is matching your capacity.';
+	const adaptation =
+		adaptationParts.length > 0
+			? `Adjusted the next plan because ${adaptationParts.join('; ')}.`
+			: 'No change needed — the plan is matching your capacity.';
 
 	const prefs = await getPreferences(userId);
 	const delta = input.tomorrow === 'lighter' ? -12 : input.tomorrow === 'harder' ? 10 : 0;
@@ -87,7 +104,10 @@ export async function submitCheckIn(
 		await db.update(dailyPlans).set({ status, updatedAt: new Date() }).where(eq(dailyPlans.id, plan.id));
 	}
 
-	await db.update(userPreferences).set({ intensity: nextIntensity, updatedAt: new Date() }).where(eq(userPreferences.userId, userId));
+	await db
+		.update(userPreferences)
+		.set({ intensity: nextIntensity, updatedAt: new Date() })
+		.where(eq(userPreferences.userId, userId));
 
 	if (input.confidence <= 2) {
 		await rememberFact({
@@ -127,7 +147,11 @@ export const planRouter = ctx.router({
 	/** Today's plan, generated on first read so the dashboard is never empty. */
 	today: ctx.protectedProcedure.input(z.object({ day: daySchema.optional() })).query(async ({ ctx: c, input }) => {
 		const day = input.day ?? todayISO();
-		const existing = await db.select({ id: dailyPlans.id }).from(dailyPlans).where(and(eq(dailyPlans.userId, c.user.id), eq(dailyPlans.day, day))).limit(1);
+		const existing = await db
+			.select({ id: dailyPlans.id })
+			.from(dailyPlans)
+			.where(and(eq(dailyPlans.userId, c.user.id), eq(dailyPlans.day, day)))
+			.limit(1);
 		if (existing.length === 0) {
 			const profile = await getProfile(c.user.id);
 			if (profile?.onboardedAt) await ensureTodayPlan(c.user.id, day);
@@ -136,22 +160,30 @@ export const planRouter = ctx.router({
 	}),
 
 	/** Rebuilds the plan from current state, optionally with an AI refinement pass. */
-	regenerate: ctx.protectedProcedure.input(z.object({ day: daySchema.optional(), useAi: z.boolean().default(true) })).mutation(async ({ ctx: c, input }) => {
-		const day = input.day ?? todayISO();
-		const profile = await getProfile(c.user.id);
-		if (!profile?.onboardedAt) throw new AppError('PRECONDITION_FAILED', 'Finish onboarding first.');
-		if (input.useAi) {
-			const { planWithAi } = await import('$server/services/ai-planner');
-			const result = await planWithAi(c.user.id, day, true);
-			return { planId: result.planId, refined: result.refined, note: result.note, day };
-		}
-		const result = await ensureTodayPlan(c.user.id, day, true);
-		return { planId: result.planId, refined: false, note: null, day };
-	}),
+	regenerate: ctx.protectedProcedure
+		.input(z.object({ day: daySchema.optional(), useAi: z.boolean().default(true) }))
+		.mutation(async ({ ctx: c, input }) => {
+			const day = input.day ?? todayISO();
+			const profile = await getProfile(c.user.id);
+			if (!profile?.onboardedAt) throw new AppError('PRECONDITION_FAILED', 'Finish onboarding first.');
+			if (input.useAi) {
+				const { planWithAi } = await import('$server/services/ai-planner');
+				const result = await planWithAi(c.user.id, day, true);
+				return { planId: result.planId, refined: result.refined, note: result.note, day };
+			}
+			const result = await ensureTodayPlan(c.user.id, day, true);
+			return { planId: result.planId, refined: false, note: null, day };
+		}),
 
 	/** Marks a plan item done and propagates the effect into topic progress. */
 	completeItem: ctx.protectedProcedure
-		.input(z.object({ itemId: z.string().uuid(), minutes: z.number().int().min(0).max(600).default(0), skipped: z.boolean().default(false) }))
+		.input(
+			z.object({
+				itemId: z.string().uuid(),
+				minutes: z.number().int().min(0).max(600).default(0),
+				skipped: z.boolean().default(false)
+			})
+		)
 		.mutation(async ({ ctx: c, input }) => {
 			const [item] = await db
 				.select()
@@ -180,7 +212,16 @@ export const planRouter = ctx.router({
 				await logSession({
 					userId: c.user.id,
 					topicId: topicId ?? null,
-					kind: kind === 'assess' ? 'assess' : kind === 'project' ? 'project' : kind === 'revise' ? 'revise' : kind === 'practice' ? 'practice' : 'learn',
+					kind:
+						kind === 'assess'
+							? 'assess'
+							: kind === 'project'
+								? 'project'
+								: kind === 'revise'
+									? 'revise'
+									: kind === 'practice'
+										? 'practice'
+										: 'learn',
 					minutes: effectiveMinutes,
 					day: todayISO(),
 					summary: item.title
@@ -216,7 +257,10 @@ export const planRouter = ctx.router({
 				minutesStudied: z.number().int().min(0).max(720),
 				difficulty: z.number().int().min(1).max(5),
 				confidence: z.number().int().min(1).max(5),
-				blockers: z.array(z.enum(['time', 'confusion', 'motivation', 'environment', 'illness', 'work', 'other'])).max(7).default([]),
+				blockers: z
+					.array(z.enum(['time', 'confusion', 'motivation', 'environment', 'illness', 'work', 'other']))
+					.max(7)
+					.default([]),
 				blockerNote: z.string().trim().max(600).nullable().default(null),
 				tomorrow: z.enum(['lighter', 'similar', 'harder']),
 				topicsCovered: z.array(z.string().uuid()).max(20).default([])
@@ -265,35 +309,49 @@ export const planRouter = ctx.router({
 	}),
 
 	/** Plan history with items and the matching check-in. */
-	history: ctx.protectedProcedure.input(z.object({ limit: z.number().int().min(1).max(90).default(30) })).query(async ({ ctx: c, input }) => {
-		const plans = await db.select().from(dailyPlans).where(eq(dailyPlans.userId, c.user.id)).orderBy(desc(dailyPlans.day)).limit(input.limit);
-		const ids = plans.map((p) => p.id);
-		const items = ids.length > 0 ? await db.select().from(dailyPlanItems).where(inArray(dailyPlanItems.planId, ids)) : [];
-		const checkInRows = await db.select().from(checkIns).where(eq(checkIns.userId, c.user.id)).orderBy(desc(checkIns.day)).limit(input.limit);
-		const byPlan = new Map<string, typeof items>();
-		for (const item of items) {
-			const list = byPlan.get(item.planId) ?? [];
-			list.push(item);
-			byPlan.set(item.planId, list);
-		}
-		return plans.map((plan) => ({
-			...plan,
-			items: (byPlan.get(plan.id) ?? []).sort((a, b) => a.position - b.position),
-			checkIn: checkInRows.find((ci) => ci.day === plan.day) ?? null
-		}));
-	}),
+	history: ctx.protectedProcedure
+		.input(z.object({ limit: z.number().int().min(1).max(90).default(30) }))
+		.query(async ({ ctx: c, input }) => {
+			const plans = await db
+				.select()
+				.from(dailyPlans)
+				.where(eq(dailyPlans.userId, c.user.id))
+				.orderBy(desc(dailyPlans.day))
+				.limit(input.limit);
+			const ids = plans.map((p) => p.id);
+			const items = ids.length > 0 ? await db.select().from(dailyPlanItems).where(inArray(dailyPlanItems.planId, ids)) : [];
+			const checkInRows = await db
+				.select()
+				.from(checkIns)
+				.where(eq(checkIns.userId, c.user.id))
+				.orderBy(desc(checkIns.day))
+				.limit(input.limit);
+			const byPlan = new Map<string, typeof items>();
+			for (const item of items) {
+				const list = byPlan.get(item.planId) ?? [];
+				list.push(item);
+				byPlan.set(item.planId, list);
+			}
+			return plans.map((plan) => ({
+				...plan,
+				items: (byPlan.get(plan.id) ?? []).sort((a, b) => a.position - b.position),
+				checkIn: checkInRows.find((ci) => ci.day === plan.day) ?? null
+			}));
+		}),
 
 	/** Minutes logged per day for the last N days, used by the progress chart. */
-	activity: ctx.protectedProcedure.input(z.object({ days: z.number().int().min(7).max(90).default(30) })).query(async ({ ctx: c, input }) => {
-		const from = addDaysISO(todayISO(), -(input.days - 1));
-		const rows = await db
-			.select({ day: learningSessions.day, minutes: sql<number>`sum(${learningSessions.minutes})::int` })
-			.from(learningSessions)
-			.where(and(eq(learningSessions.userId, c.user.id), sql`${learningSessions.day} >= ${from}`))
-			.groupBy(learningSessions.day)
-			.orderBy(asc(learningSessions.day));
-		return rows;
-	})
+	activity: ctx.protectedProcedure
+		.input(z.object({ days: z.number().int().min(7).max(90).default(30) }))
+		.query(async ({ ctx: c, input }) => {
+			const from = addDaysISO(todayISO(), -(input.days - 1));
+			const rows = await db
+				.select({ day: learningSessions.day, minutes: sql<number>`sum(${learningSessions.minutes})::int` })
+				.from(learningSessions)
+				.where(and(eq(learningSessions.userId, c.user.id), sql`${learningSessions.day} >= ${from}`))
+				.groupBy(learningSessions.day)
+				.orderBy(asc(learningSessions.day));
+			return rows;
+		})
 });
 
-export { topics, topicProgress, assessments, assessmentAttempts };
+export { assessmentAttempts, assessments, topicProgress, topics };

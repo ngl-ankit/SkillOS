@@ -1,10 +1,10 @@
 import { and, eq, inArray, sql } from 'drizzle-orm';
-import { PROJECT_BY_KEY, TOPIC_BY_KEY, TRACKS, TRACK_BY_SLUG } from '../catalog';
+import { slugify } from '$lib/utils';
+import { PROJECT_BY_KEY, TOPIC_BY_KEY, TRACK_BY_SLUG, TRACKS } from '../catalog';
 import type { CatalogTopic, CatalogTrack } from '../catalog/types';
 import { db } from '../db';
 import { projects, roadmapPhases, roadmaps, topicPrerequisites, topicProgress, topics } from '../db/schema';
 import { logger } from '../logger';
-import { slugify } from '$lib/utils';
 import type { BlueprintPhase, BlueprintTopic, RoadmapBlueprint } from './types';
 
 const STOP_WORDS = new Set([
@@ -65,7 +65,11 @@ export function tokenize(text: string): string[] {
 }
 
 /** Scores every curated track against the learner's stated goal and target role. */
-export function rankTracks(goalTitle: string, targetRole: string | null, skills: string[]): { track: CatalogTrack; score: number }[] {
+export function rankTracks(
+	goalTitle: string,
+	targetRole: string | null,
+	skills: string[]
+): { track: CatalogTrack; score: number }[] {
 	const goalTokens = new Set(tokenize(`${goalTitle} ${targetRole ?? ''}`));
 	const skillTokens = new Set(skills.flatMap((s) => tokenize(s)));
 	const results = TRACKS.map((track) => {
@@ -87,7 +91,12 @@ export function rankTracks(goalTitle: string, targetRole: string | null, skills:
 	return results.sort((a, b) => b.score - a.score || a.track.title.localeCompare(b.track.title));
 }
 
-export function pickTrack(goalTitle: string, targetRole: string | null, skills: string[], explicitSlug?: string | null): CatalogTrack {
+export function pickTrack(
+	goalTitle: string,
+	targetRole: string | null,
+	skills: string[],
+	explicitSlug?: string | null
+): CatalogTrack {
 	if (explicitSlug) {
 		const found = TRACK_BY_SLUG.get(explicitSlug);
 		if (found) return found;
@@ -147,7 +156,10 @@ export function buildBlueprint(track: CatalogTrack, goalTitle: string, options: 
 	let kept = eligible;
 	if (options.deadline) {
 		const today = options.today ?? new Date().toISOString().slice(0, 10);
-		const days = Math.max(1, Math.round((Date.parse(`${options.deadline}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000));
+		const days = Math.max(
+			1,
+			Math.round((Date.parse(`${options.deadline}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000)
+		);
 		// Realistic capacity: 70% of budgeted minutes on study, the rest lost to life.
 		const capacity = days * options.dailyMinutes * 0.7;
 		const totalMinutes = eligible.reduce((sum, key) => sum + (TOPIC_BY_KEY.get(key)?.minutes ?? 0), 0);
@@ -362,7 +374,12 @@ export async function persistBlueprint(
 			});
 		}
 
-		logger.info('roadmap.persisted', { userId, roadmapId: roadmap.id, phases: phaseIds.length, topics: topicIdsByCatalogKey.size });
+		logger.info('roadmap.persisted', {
+			userId,
+			roadmapId: roadmap.id,
+			phases: phaseIds.length,
+			topics: topicIdsByCatalogKey.size
+		});
 		return { roadmapId: roadmap.id, phaseIds, topicIdsByCatalogKey };
 	});
 }

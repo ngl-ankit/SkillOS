@@ -71,7 +71,9 @@ export const backgroundJobs = pgTable(
 		payload: jsonb('payload').$type<Record<string, unknown>>().notNull().default({}),
 		result: jsonb('result').$type<Record<string, unknown>>(),
 		error: text('error'),
-		runner: text('runner', { enum: ['trigger', 'inline'] }).notNull().default('inline'),
+		runner: text('runner', { enum: ['trigger', 'inline'] })
+			.notNull()
+			.default('inline'),
 		createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 		updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 	},

@@ -1,11 +1,21 @@
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { addDaysISO, clamp, humanMinutes, pct } from '$lib/utils';
 import { db } from '../db';
-import { aiMemory, assessmentAttempts, assessments, checkIns, learningSessions, profiles, projects, topicProgress, topics } from '../db/schema';
-import { getPrimaryGoal, getRoadmapBundle, getPreferences } from './access';
-import { memoryFor } from './access';
-import { revisionQueue, roadmapProgress } from './progress';
+import {
+	aiMemory,
+	assessmentAttempts,
+	assessments,
+	checkIns,
+	learningSessions,
+	profiles,
+	projectProgress,
+	projects,
+	topicProgress,
+	topics
+} from '../db/schema';
 import type { TopicSnapshot } from '../engine/types';
+import { getPreferences, getPrimaryGoal, getRoadmapBundle, memoryFor } from './access';
+import { revisionQueue, roadmapProgress } from './progress';
 
 export type LearnerContext = {
 	name: string;
@@ -25,14 +35,30 @@ export type LearnerContext = {
 		estimatedMinutesRemaining: number;
 		phases: { title: string; completed: number; total: number }[];
 	} | null;
-	currentTopic: { topicId: string; title: string; domain: string; concepts: string[]; difficulty: number; progressPct: number; phaseTitle: string } | null;
+	currentTopic: {
+		topicId: string;
+		title: string;
+		domain: string;
+		concepts: string[];
+		difficulty: number;
+		progressPct: number;
+		phaseTitle: string;
+	} | null;
 	recentTopics: { title: string; status: string; mastery: number; minutesSpent: number }[];
 	upcomingTopics: { title: string; difficulty: number; estimatedMinutes: number }[];
 	dueRevision: { title: string; mastery: number; overdueDays: number }[];
 	weakAreas: { title: string; mastery: number; note: string }[];
 	strengths: { title: string; mastery: number }[];
 	assessmentHistory: { title: string; score: number; passed: boolean; at: string; weak: string[] }[];
-	recentCheckIns: { day: string; completed: string; minutes: number; difficulty: number; confidence: number; blockers: string[]; tomorrow: string }[];
+	recentCheckIns: {
+		day: string;
+		completed: string;
+		minutes: number;
+		difficulty: number;
+		confidence: number;
+		blockers: string[];
+		tomorrow: string;
+	}[];
 	studyPattern: { last7Minutes: number; activeDaysLast7: number; averageSessionMinutes: number };
 	project: { title: string; goal: string; done: number; total: number; nextMilestone: string | null } | null;
 	memory: { kind: string; content: string; timesObserved: number }[];
@@ -98,7 +124,8 @@ export async function buildLearnerContext(userId: string, today: string): Promis
 		const ids = bundle.projectList.map((p) => p.id);
 		const states = await db.select().from(projectProgress).where(inArray(projectProgress.projectId, ids));
 		const byId = new Map(states.map((s) => [s.projectId, s]));
-		const chosen = bundle.projectList.find((p) => (byId.get(p.id)?.status ?? 'not_started') === 'in_progress') ?? bundle.projectList[0];
+		const chosen =
+			bundle.projectList.find((p) => (byId.get(p.id)?.status ?? 'not_started') === 'in_progress') ?? bundle.projectList[0];
 		if (!chosen) return null;
 		const done = byId.get(chosen.id)?.completedMilestones.length ?? 0;
 		return {
@@ -155,8 +182,15 @@ export async function buildLearnerContext(userId: string, today: string): Promis
 			.filter((t) => t.mastery < 70)
 			.sort((a, b) => a.mastery - b.mastery)
 			.slice(0, 6)
-			.map((t) => ({ title: t.title, mastery: t.mastery, note: t.status === 'in_progress' ? `${t.progressPct}% through the topic` : 'Attempted' })),
-		strengths: byMastery.filter((t) => t.mastery >= 80).slice(0, 6).map((t) => ({ title: t.title, mastery: t.mastery })),
+			.map((t) => ({
+				title: t.title,
+				mastery: t.mastery,
+				note: t.status === 'in_progress' ? `${t.progressPct}% through the topic` : 'Attempted'
+			})),
+		strengths: byMastery
+			.filter((t) => t.mastery >= 80)
+			.slice(0, 6)
+			.map((t) => ({ title: t.title, mastery: t.mastery })),
 		assessmentHistory: attemptRows.map((row) => {
 			const summary = row.summary as { weak?: string[] } | null;
 			return {
@@ -185,7 +219,9 @@ export async function buildLearnerContext(userId: string, today: string): Promis
 /** Renders the learner context as a compact system prompt block. */
 export function contextToPrompt(ctx: LearnerContext, extras?: string): string {
 	const lines: string[] = [];
-	lines.push(`LEARNER: ${ctx.name} · level ${ctx.level} · studies ~${ctx.dailyMinutes} min/day · prefers ${ctx.learningStyle.replace('_', ' ')} material.`);
+	lines.push(
+		`LEARNER: ${ctx.name} · level ${ctx.level} · studies ~${ctx.dailyMinutes} min/day · prefers ${ctx.learningStyle.replace('_', ' ')} material.`
+	);
 	if (ctx.targetRole) lines.push(`TARGET ROLE: ${ctx.targetRole}${ctx.deadline ? ` · deadline ${ctx.deadline}` : ''}`);
 	if (ctx.goal) lines.push(`PRIMARY GOAL: ${ctx.goal.title}`);
 	if (ctx.roadmap) {
@@ -200,12 +236,19 @@ export function contextToPrompt(ctx: LearnerContext, extras?: string): string {
 		);
 	}
 	if (ctx.recentTopics.length > 0)
-		lines.push(`RECENTLY WORKED ON: ${ctx.recentTopics.map((t) => `${t.title} (${t.status}, mastery ${t.mastery}%)`).join('; ')}`);
+		lines.push(
+			`RECENTLY WORKED ON: ${ctx.recentTopics.map((t) => `${t.title} (${t.status}, mastery ${t.mastery}%)`).join('; ')}`
+		);
 	if (ctx.upcomingTopics.length > 0)
-		lines.push(`UP NEXT: ${ctx.upcomingTopics.map((t) => `${t.title} (difficulty ${t.difficulty}, ~${humanMinutes(t.estimatedMinutes)})`).join('; ')}`);
+		lines.push(
+			`UP NEXT: ${ctx.upcomingTopics.map((t) => `${t.title} (difficulty ${t.difficulty}, ~${humanMinutes(t.estimatedMinutes)})`).join('; ')}`
+		);
 	if (ctx.dueRevision.length > 0)
-		lines.push(`REVISION DUE: ${ctx.dueRevision.map((r) => `${r.title} (mastery ${r.mastery}%${r.overdueDays > 0 ? `, ${r.overdueDays}d overdue` : ''})`).join('; ')}`);
-	if (ctx.weakAreas.length > 0) lines.push(`WEAK AREAS: ${ctx.weakAreas.map((w) => `${w.title} (mastery ${w.mastery}%, ${w.note})`).join('; ')}`);
+		lines.push(
+			`REVISION DUE: ${ctx.dueRevision.map((r) => `${r.title} (mastery ${r.mastery}%${r.overdueDays > 0 ? `, ${r.overdueDays}d overdue` : ''})`).join('; ')}`
+		);
+	if (ctx.weakAreas.length > 0)
+		lines.push(`WEAK AREAS: ${ctx.weakAreas.map((w) => `${w.title} (mastery ${w.mastery}%, ${w.note})`).join('; ')}`);
 	if (ctx.strengths.length > 0) lines.push(`STRENGTHS: ${ctx.strengths.map((s) => `${s.title} (${s.mastery}%)`).join('; ')}`);
 	if (ctx.assessmentHistory.length > 0)
 		lines.push(
@@ -215,9 +258,15 @@ export function contextToPrompt(ctx: LearnerContext, extras?: string): string {
 		lines.push(
 			`CHECK-INS: ${ctx.recentCheckIns.map((c) => `${c.day}: ${c.completed}, ${c.minutes}min, difficulty ${c.difficulty}/5, confidence ${c.confidence}/5${c.blockers.length ? `, blocked by ${c.blockers.join('/')}` : ''}`).join('; ')}`
 		);
-	lines.push(`STUDY PATTERN: ${ctx.studyPattern.last7Minutes} min over ${ctx.studyPattern.activeDaysLast7}/7 days, average session ${ctx.studyPattern.averageSessionMinutes} min.`);
-	if (ctx.project) lines.push(`PROJECT: ${ctx.project.title} — ${ctx.project.goal} (${ctx.project.done}/${ctx.project.total} milestones${ctx.project.nextMilestone ? `, next: ${ctx.project.nextMilestone}` : ''}).`);
-	if (ctx.memory.length > 0) lines.push(`REMEMBERED ABOUT THIS LEARNER: ${ctx.memory.map((m) => `[${m.kind}] ${m.content}`).join(' | ')}`);
+	lines.push(
+		`STUDY PATTERN: ${ctx.studyPattern.last7Minutes} min over ${ctx.studyPattern.activeDaysLast7}/7 days, average session ${ctx.studyPattern.averageSessionMinutes} min.`
+	);
+	if (ctx.project)
+		lines.push(
+			`PROJECT: ${ctx.project.title} — ${ctx.project.goal} (${ctx.project.done}/${ctx.project.total} milestones${ctx.project.nextMilestone ? `, next: ${ctx.project.nextMilestone}` : ''}).`
+		);
+	if (ctx.memory.length > 0)
+		lines.push(`REMEMBERED ABOUT THIS LEARNER: ${ctx.memory.map((m) => `[${m.kind}] ${m.content}`).join(' | ')}`);
 	if (extras) lines.push(extras);
 	return lines.join('\n');
 }

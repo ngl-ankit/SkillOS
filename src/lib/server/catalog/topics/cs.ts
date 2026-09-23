@@ -18,9 +18,22 @@ export const CS_TOPICS: CatalogTopic[] = [
 		],
 		resources: { primary: 'cs50x', alternative: 'freecodecamp' },
 		questions: [
-			mcq('First step when output is wrong?', ['Rewrite', 'Reproduce and narrow where values diverge', 'Add features', 'Ask immediately'], 'b', 'Debugging', 'Reproduce, isolate, fix, verify.'),
+			mcq(
+				'First step when output is wrong?',
+				['Rewrite', 'Reproduce and narrow where values diverge', 'Add features', 'Ask immediately'],
+				'b',
+				'Debugging',
+				'Reproduce, isolate, fix, verify.'
+			),
 			tf('Functions name logic so it can be reused.', true, 'Functions as abstractions', 'Abstraction.'),
-			code('How many times does the loop body run?', '3', ['^\\s*3\\s*$|three'], 'Tracing code', 'i = 2, 5, 8.', 'for i in range(2, 10, 3):\n    print(i)')
+			code(
+				'How many times does the loop body run?',
+				'3',
+				['^\\s*3\\s*$|three'],
+				'Tracing code',
+				'i = 2, 5, 8.',
+				'for i in range(2, 10, 3):\n    print(i)'
+			)
 		]
 	},
 	{
@@ -60,7 +73,13 @@ export const CS_TOPICS: CatalogTopic[] = [
 		],
 		resources: { primary: 'mit-6006', alternative: 'bigo-cheatsheet', practice: 'neetcode-roadmap' },
 		questions: [
-			mcq('Binary search requires input to be…', ['Unique', 'Sorted', 'A list', 'Small'], 'b', 'Binary search', 'Discard half each step.'),
+			mcq(
+				'Binary search requires input to be…',
+				['Unique', 'Sorted', 'A list', 'Small'],
+				'b',
+				'Binary search',
+				'Discard half each step.'
+			),
 			mcq('Two nested loops over n?', ['O(n)', 'O(2n)', 'O(n²)', 'O(log n)'], 'c', 'Big-O notation', 'n × n.'),
 			short(
 				'When does dynamic programming fit?',
@@ -84,7 +103,13 @@ export const CS_TOPICS: CatalogTopic[] = [
 		practice: [{ title: 'Race condition', prompt: 'Two threads increment a counter without a lock; observe, then fix.' }],
 		resources: { primary: 'ostep', alternative: 'missing-semester' },
 		questions: [
-			mcq('Threads in a process share…', ['Nothing', 'The address space', 'Separate heaps', 'Separate files'], 'b', 'Processes and threads', 'Hence synchronisation.'),
+			mcq(
+				'Threads in a process share…',
+				['Nothing', 'The address space', 'Separate heaps', 'Separate files'],
+				'b',
+				'Processes and threads',
+				'Hence synchronisation.'
+			),
 			tf('Race conditions depend on unpredictable timing.', true, 'Concurrency and locks', 'Locks enforce order.'),
 			short(
 				'What does virtual memory give each process?',

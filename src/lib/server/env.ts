@@ -30,6 +30,21 @@ export function env(): ServerEnv {
 	if (cached) return cached;
 	const parsed = schema.safeParse(process.env);
 	if (!parsed.success) {
+		// Vite/SvelteKit build-time analysis imports server modules without runtime
+		// env. Placeholders keep the build honest; the real server never starts on
+		// them because the migrate script and first DB touch fail fast.
+		if (process.env.SKILLOS_BUILD === '1') {
+			cached = {
+				NODE_ENV: 'production',
+				DATABASE_URL: 'postgres://placeholder:placeholder@127.0.0.1:5432/placeholder',
+				BETTER_AUTH_SECRET: 'build-time-placeholder-secret-0123456789',
+				XAI_API_KEY: '',
+				XAI_MODEL: '',
+				PUBLIC_APP_URL: 'http://localhost:5173',
+				TRIGGER_SECRET_KEY: ''
+			};
+			return cached;
+		}
 		const issues = parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
 		throw new Error(`Invalid server environment — ${issues}`);
 	}

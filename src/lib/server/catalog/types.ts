@@ -1,4 +1,13 @@
-export type ResourceType = 'documentation' | 'tutorial' | 'course' | 'video' | 'interactive' | 'book' | 'project' | 'exercise' | 'article';
+export type ResourceType =
+	| 'documentation'
+	| 'tutorial'
+	| 'course'
+	| 'video'
+	| 'interactive'
+	| 'book'
+	| 'project'
+	| 'exercise'
+	| 'article';
 export type Difficulty = 1 | 2 | 3 | 4 | 5;
 
 export type CatalogResource = {

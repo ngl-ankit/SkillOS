@@ -32,9 +32,24 @@ const KIND_LABEL: Record<PlanItemKind, string> = {
 
 /** Block allocation by realistic session length — never a plan you cannot finish. */
 function allocation(budget: number): { kind: PlanItemKind; share: number }[] {
-	if (budget <= 20) return [{ kind: 'learn', share: 0.55 }, { kind: 'revise', share: 0.45 }];
-	if (budget <= 45) return [{ kind: 'learn', share: 0.4 }, { kind: 'practice', share: 0.4 }, { kind: 'revise', share: 0.2 }];
-	if (budget <= 75) return [{ kind: 'learn', share: 0.36 }, { kind: 'practice', share: 0.34 }, { kind: 'assess', share: 0.14 }, { kind: 'revise', share: 0.16 }];
+	if (budget <= 20)
+		return [
+			{ kind: 'learn', share: 0.55 },
+			{ kind: 'revise', share: 0.45 }
+		];
+	if (budget <= 45)
+		return [
+			{ kind: 'learn', share: 0.4 },
+			{ kind: 'practice', share: 0.4 },
+			{ kind: 'revise', share: 0.2 }
+		];
+	if (budget <= 75)
+		return [
+			{ kind: 'learn', share: 0.36 },
+			{ kind: 'practice', share: 0.34 },
+			{ kind: 'assess', share: 0.14 },
+			{ kind: 'revise', share: 0.16 }
+		];
 	if (budget <= 120)
 		return [
 			{ kind: 'learn', share: 0.3 },
@@ -87,13 +102,22 @@ export function composePlan(input: PlannerInput): PlanDraft {
 	};
 
 	// 1 — Carry-over is honoured first so missed work cannot silently disappear.
-	const carryBudget = Math.min(remaining * 0.35, input.carryOver.reduce((s, c) => s + c.minutes, 0));
+	const carryBudget = Math.min(
+		remaining * 0.35,
+		input.carryOver.reduce((s, c) => s + c.minutes, 0)
+	);
 	if (carryBudget >= 5) {
 		let used = 0;
 		for (const c of input.carryOver.slice(0, 3)) {
 			if (remaining < 5 || used >= carryBudget) break;
 			const share = clamp(Math.round((c.minutes / input.carryOver.reduce((s, x) => s + x.minutes, 0)) * carryBudget), 5, 40);
-			push('carry_over', c.title, c.detail || 'Left over from your last session.', share, c.topicId ? { topicId: c.topicId } : {});
+			push(
+				'carry_over',
+				c.title,
+				c.detail || 'Left over from your last session.',
+				share,
+				c.topicId ? { topicId: c.topicId } : {}
+			);
 			used += share;
 		}
 		if (items.length > 0) rationale.push('Carried over unfinished work from your previous plan.');
@@ -111,10 +135,17 @@ export function composePlan(input: PlannerInput): PlanDraft {
 		const picks = revisionCandidates.slice(0, revisionCandidates.length >= 3 ? 2 : 1);
 		const each = Math.round(reviseMinutes / picks.length);
 		for (const t of picks) {
-			const why = t.nextReviewAt && new Date(t.nextReviewAt).getTime() <= Date.now() ? 'Due for review' : `Mastery at ${t.mastery}%`;
-			push('revise', `Revise: ${t.title}`, `${why}. Re-do one practice item, then explain the idea out loud in one sentence.`, each, {
-				topicId: t.topicId
-			});
+			const why =
+				t.nextReviewAt && new Date(t.nextReviewAt).getTime() <= Date.now() ? 'Due for review' : `Mastery at ${t.mastery}%`;
+			push(
+				'revise',
+				`Revise: ${t.title}`,
+				`${why}. Re-do one practice item, then explain the idea out loud in one sentence.`,
+				each,
+				{
+					topicId: t.topicId
+				}
+			);
 		}
 		rationale.push(
 			input.dueReviews.length > 0
@@ -136,9 +167,7 @@ export function composePlan(input: PlannerInput): PlanDraft {
 		push(
 			'learn',
 			isContinuation ? `Continue: ${focus.title}` : `Learn: ${focus.title}`,
-			focus.concepts.length > 0
-				? `Cover ${focus.concepts.slice(0, 3).join(', ')}. ${styleHint(input.learningStyle)}`
-				: styleHint(input.learningStyle),
+			styleHint(input.learningStyle),
 			conceptMinutes,
 			{ topicId: focus.topicId }
 		);

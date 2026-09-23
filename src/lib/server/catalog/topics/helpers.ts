@@ -17,7 +17,13 @@ export const tf = (prompt: string, answer: boolean, concept: string, explanation
 	explanation
 });
 
-export const short = (prompt: string, answer: string, keywords: string[], concept: string, explanation: string): CatalogQuestion => ({
+export const short = (
+	prompt: string,
+	answer: string,
+	keywords: string[],
+	concept: string,
+	explanation: string
+): CatalogQuestion => ({
 	type: 'short',
 	prompt,
 	answer,

@@ -1,22 +1,53 @@
 {
 	"$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
-	"vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
-	"files": { "includes": ["**", "!**/build/**", "!**/.svelte-kit/**", "!**/drizzle/**", "!**/bun.lock"] },
-	"formatter": { "enabled": true, "indentStyle": "tab", "lineWidth": 130, "includes": ["**", "!**/*.svelte"] },
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	},
+	"files": {
+		"includes": ["**", "!**/build", "!**/.svelte-kit", "!**/drizzle", "!**/bun.lock", "!**/*.css", "!**/static/**"]
+	},
+	"formatter": {
+		"enabled": true,
+		"indentStyle": "tab",
+		"lineWidth": 130,
+		"includes": ["**", "!**/*.svelte"]
+	},
 	"linter": {
 		"enabled": true,
 		"rules": {
 			"recommended": true,
-			"suspicious": { "noExplicitAny": "warn" },
-			"a11y": { "useValidAnchor": "off", "noStaticElementInteractions": "off" },
-			"correctness": { "noUnusedVariables": "warn" }
+			"suspicious": {
+				"noExplicitAny": "warn"
+			},
+			"a11y": {
+				"useValidAnchor": "off",
+				"noStaticElementInteractions": "off"
+			},
+			"correctness": {
+				"noUnusedVariables": "warn"
+			}
 		}
 	},
-	"javascript": { "formatter": { "quoteStyle": "single", "trailingCommas": "none", "semicolons": "always" } },
+	"javascript": {
+		"formatter": {
+			"quoteStyle": "single",
+			"trailingCommas": "none",
+			"semicolons": "always"
+		}
+	},
 	"overrides": [
 		{
 			"includes": ["**/*.svelte"],
-			"linter": { "rules": { "correctness": { "noUnusedVariables": "off", "noUnusedImports": "off" } } }
+			"linter": {
+				"rules": {
+					"correctness": {
+						"noUnusedVariables": "off",
+						"noUnusedImports": "off"
+					}
+				}
+			}
 		}
 	]
 }

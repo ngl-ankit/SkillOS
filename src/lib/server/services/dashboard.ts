@@ -1,11 +1,31 @@
 import { and, desc, eq, gte, inArray, sql } from 'drizzle-orm';
 import { addDaysISO, clamp, daysBetween, humanMinutes, pct } from '$lib/utils';
 import { db } from '../db';
-import { assessmentAttempts, assessments, checkIns, dailyPlans, learningSessions, projectProgress, projects, topicProgress, topics } from '../db/schema';
+import {
+	assessmentAttempts,
+	assessments,
+	checkIns,
+	dailyPlanItems,
+	dailyPlans,
+	learningSessions,
+	projectProgress,
+	projects,
+	topicProgress,
+	topics
+} from '../db/schema';
 import { composePlan } from '../engine/planner';
 import type { PlanDraft, TopicSnapshot } from '../engine/types';
 import { getPreferences, getPrimaryGoal, getProfile, getRoadmapBundle, isOnboarded, requireProfile, todayPlan } from './access';
-import { revisionQueue, roadmapProgress, streak, weakTopics, type RevisionItem, type RoadmapProgress, type StreakInfo, type WeakTopic } from './progress';
+import {
+	type RevisionItem,
+	type RoadmapProgress,
+	revisionQueue,
+	roadmapProgress,
+	type StreakInfo,
+	streak,
+	type WeakTopic,
+	weakTopics
+} from './progress';
 
 export type TodayState = {
 	onboarded: boolean;
@@ -22,10 +42,26 @@ export type TodayState = {
 		rationale: string[];
 		aiNote: string | null;
 		status: 'active' | 'completed' | 'partial' | 'missed';
-		items: { id: string; position: number; kind: string; title: string; detail: string; minutes: number; status: string; ref: Record<string, unknown> }[];
+		items: {
+			id: string;
+			position: number;
+			kind: string;
+			title: string;
+			detail: string;
+			minutes: number;
+			status: string;
+			ref: Record<string, unknown>;
+		}[];
 	} | null;
 	progress: RoadmapProgress | null;
-	currentTopic: { topicId: string; title: string; domain: string; progressPct: number; estimatedMinutes: number; phaseTitle: string } | null;
+	currentTopic: {
+		topicId: string;
+		title: string;
+		domain: string;
+		progressPct: number;
+		estimatedMinutes: number;
+		phaseTitle: string;
+	} | null;
 	nextMilestone: { title: string; detail: string; phaseTitle: string; remainingTopics: number } | null;
 	revision: RevisionItem[];
 	weak: WeakTopic[];
@@ -86,17 +122,27 @@ export async function buildToday(userId: string, today: string, now: Date = new 
 	]);
 
 	const snapshots = bundle?.topics ?? [];
-	const current = snapshots.find((t) => t.status === 'in_progress') ?? snapshots.find((t) => t.available && t.status === 'not_started') ?? null;
+	const current =
+		snapshots.find((t) => t.status === 'in_progress') ?? snapshots.find((t) => t.available && t.status === 'not_started') ?? null;
 
 	const phaseIndex = current ? (bundle?.phases.findIndex((p) => p.title === current.phaseTitle) ?? -1) : -1;
-	const phase = current && phaseIndex >= 0 && bundle ? { title: current.phaseTitle, index: phaseIndex + 1, total: bundle.phases.length } : null;
+	const phase =
+		current && phaseIndex >= 0 && bundle
+			? { title: current.phaseTitle, index: phaseIndex + 1, total: bundle.phases.length }
+			: null;
 
 	const nextMilestone = (() => {
 		if (!bundle) return null;
 		for (const phaseRow of bundle.phases) {
 			const inPhase = snapshots.filter((t) => t.phaseTitle === phaseRow.title);
 			const remaining = inPhase.filter((t) => t.status !== 'completed').length;
-			if (remaining > 0) return { title: phaseRow.milestoneTitle, detail: phaseRow.milestoneDetail, phaseTitle: phaseRow.title, remainingTopics: remaining };
+			if (remaining > 0)
+				return {
+					title: phaseRow.milestoneTitle,
+					detail: phaseRow.milestoneDetail,
+					phaseTitle: phaseRow.title,
+					remainingTopics: remaining
+				};
 		}
 		return null;
 	})();
@@ -203,7 +249,11 @@ async function latestAttempt(userId: string) {
  * Ensures today's plan exists. Plans are built from live learner state, so a
  * missing plan is generated once and then persisted for the rest of the day.
  */
-export async function ensureTodayPlan(userId: string, today: string, force = false): Promise<{ planId: string; created: boolean }> {
+export async function ensureTodayPlan(
+	userId: string,
+	today: string,
+	force = false
+): Promise<{ planId: string; created: boolean }> {
 	const existing = await todayPlan(userId, today);
 	if (existing && !force) return { planId: existing.plan.id, created: false };
 
@@ -219,11 +269,13 @@ export async function ensureTodayPlan(userId: string, today: string, force = fal
 	const activeProject = await activeProjectDraft(userId, bundle);
 
 	// Yesterday's check-in tailors today's intensity and revision weight.
-	const yesterday = (await db
-		.select()
-		.from(checkIns)
-		.where(and(eq(checkIns.userId, userId), eq(checkIns.day, addDaysISO(today, -1))))
-		.limit(1))[0];
+	const yesterday = (
+		await db
+			.select()
+			.from(checkIns)
+			.where(and(eq(checkIns.userId, userId), eq(checkIns.day, addDaysISO(today, -1))))
+			.limit(1)
+	)[0];
 
 	const intensity = clamp(prefs.intensity, 50, 150) / 100;
 	const budget = clamp(Math.round(profile.dailyMinutes * intensity), 10, 600);
@@ -233,9 +285,7 @@ export async function ensureTodayPlan(userId: string, today: string, force = fal
 		goalTitle: goal?.title ?? 'Your goal',
 		topics: snapshots,
 		dueReviews: snapshots.filter((t) => t.nextReviewAt && new Date(t.nextReviewAt).getTime() <= Date.now()),
-		weakTopics: weak
-			.map((w) => snapshots.find((t) => t.topicId === w.topicId))
-			.filter((t): t is TopicSnapshot => Boolean(t)),
+		weakTopics: weak.map((w) => snapshots.find((t) => t.topicId === w.topicId)).filter((t): t is TopicSnapshot => Boolean(t)),
 		carryOver,
 		activeProject,
 		learningStyle: profile.learningStyle,
@@ -276,7 +326,10 @@ async function activeProjectDraft(userId: string, bundle: Awaited<ReturnType<typ
 	if (!bundle) return null;
 	const ids = bundle.projectList.map((p) => p.id);
 	if (ids.length === 0) return null;
-	const states = await db.select().from(projectProgress).where(and(eq(projectProgress.userId, userId), inArray(projectProgress.projectId, ids)));
+	const states = await db
+		.select()
+		.from(projectProgress)
+		.where(and(eq(projectProgress.userId, userId), inArray(projectProgress.projectId, ids)));
 	const byId = new Map(states.map((s) => [s.projectId, s]));
 	const candidates = bundle.projectList.filter((p) => (byId.get(p.id)?.status ?? 'not_started') !== 'completed');
 	const chosen = candidates.sort((a, b) => {
@@ -376,7 +429,11 @@ export async function persistPlan(
 export async function activitySeries(userId: string, today: string, days = 14) {
 	const from = addDaysISO(today, -(days - 1));
 	const rows = await db
-		.select({ day: learningSessions.day, minutes: sql<number>`sum(${learningSessions.minutes})::int`, kind: learningSessions.kind })
+		.select({
+			day: learningSessions.day,
+			minutes: sql<number>`sum(${learningSessions.minutes})::int`,
+			kind: learningSessions.kind
+		})
 		.from(learningSessions)
 		.where(and(eq(learningSessions.userId, userId), gte(learningSessions.day, from)))
 		.groupBy(learningSessions.day, learningSessions.kind);
@@ -399,4 +456,4 @@ export async function activitySeries(userId: string, today: string, days = 14) {
 	};
 }
 
-export { humanMinutes, topics, topicProgress };
+export { humanMinutes, topicProgress, topics };
