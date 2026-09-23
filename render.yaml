@@ -1,13 +1,5 @@
 # Render Blueprint for SkillOS
-# Free web service + free PostgreSQL
-
-databases:
-  - name: skillos-db
-    databaseName: skillos
-    user: skillos
-    plan: free
-    region: oregon
-    postgresMajorVersion: "16"
+# Free web service + external PostgreSQL
 
 services:
   - type: web
@@ -35,9 +27,7 @@ services:
         value: production
 
       - key: DATABASE_URL
-        fromDatabase:
-          name: skillos-db
-          property: connectionString
+        sync: false
 
       - key: BETTER_AUTH_SECRET
         generateValue: true
