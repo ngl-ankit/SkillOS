@@ -17,13 +17,12 @@ services:
     region: oregon
     branch: main
     autoDeploy: true
+
     healthCheckPath: /api/health
 
     buildCommand: bun install --frozen-lockfile && bun run build
 
-    preDeployCommand: bun run db:migrate
-
-    startCommand: node build/index.js
+    startCommand: bun run db:migrate && node build/index.js
 
     envVars:
       - key: NODE_VERSION
